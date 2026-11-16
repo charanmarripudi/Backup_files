@@ -1,0 +1,36 @@
+# ==============================================================================
+# RELIANCE AI VISION - INDUSTRIAL EDGE INFERENCE PLATFORM & RTSP GATEWAY
+# Master Production Dependencies Specification
+# Target Environments: Raspberry Pi 4/5 (ARM64 Ubuntu/Debian), Linux Edge Servers
+# ==============================================================================
+
+# --- Core Deep Learning & Computer Vision ---
+ultralytics>=8.0.196          # State-of-the-art YOLOv8 object detection & pose estimation
+torch>=2.0.0                  # PyTorch neural tensor execution engine (CPU/CUDA/ARM NEON)
+torchvision>=0.15.0           # Computer vision transforms, NMS ops, and image utilities
+opencv-python>=4.8.0.76       # OpenCV: RTSP stream demuxing, decoding, resizing & drawing
+numpy>=1.23.5,<2.0.0          # High-performance multidimensional array & matrix math
+lapx>=0.5.5                   # Fast C++ Linear Assignment Problem solver for ByteTrack
+
+# --- Optical Character Recognition (OCR) & ANPR ---
+pytesseract>=0.3.10           # Tesseract OCR Python wrapper for FastANPR license plate recognition
+easyocr>=1.7.0                # Deep learning OCR fallback engine for difficult plates
+
+# --- Backend API & Web Infrastructure ---
+fastapi>=0.100.0              # High-throughput asynchronous REST API framework (ASGI)
+uvicorn[standard]>=0.22.0     # Lightning-fast ASGI web server based on uvloop & httptools
+pydantic>=2.0.0               # Data validation, serialization & schema enforcement
+python-multipart>=0.0.6       # Form-data and video file upload parser for FastAPI
+
+# --- Database & Alert Persistence ---
+psycopg2-binary>=2.9.6        # PostgreSQL database adapter with connection pooling support
+
+# --- Networking, Heartbeats & Client Utilities ---
+requests>=2.31.0              # Synchronous HTTP client for edge heartbeats & external webhooks
+httpx>=0.24.1                 # Asynchronous HTTP client for non-blocking camera checks
+
+# --- Media, Documentation & System Monitoring ---
+imageio-ffmpeg>=0.4.8         # Standalone FFmpeg binary access and video encoding utilities
+python-dotenv>=1.0.0          # Environment variable configuration management (.env)
+psutil>=5.9.5                 # Hardware telemetry: CPU loadavg, RAM usage & disk stats
+python-docx>=0.8.11           # Technical architecture manual & specification generator

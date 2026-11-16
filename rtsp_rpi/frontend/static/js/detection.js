@@ -1,0 +1,1100 @@
+const hlsInstances = {};
+window.cameraTransitioning = window.cameraTransitioning || {};
+
+function stopSimulatedCanvas(idx, video) {
+    if (video && video.srcObject) { video.srcObject = null; }
+}
+
+async function playHLS(video, url, idx, forceReload = false) {
+    if (!forceReload && video.dataset.currentUrl === url && hlsInstances[idx]) {
+        return; // Stream is already playing this URL — don't interrupt or buffer!
+    }
+    video.dataset.currentUrl = url;
+
+    if (hlsInstances[idx]) { 
+        try {
+            hlsInstances[idx].detachMedia();
+            hlsInstances[idx].destroy();
+        } catch (_) {}
+        delete hlsInstances[idx]; 
+    }
+    
+    // Clean reset of the video element to flush hardware decoders and prevent stalling
+    try {
+        video.pause();
+        video.src = "";
+        video.removeAttribute("src");
+        video.load();
+    } catch (_) {}
+
+    const fullUrl = url + "?t=" + Date.now();
+    if (typeof Hls === "undefined" || !Hls.isSupported()) { 
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.src = fullUrl; 
+        video.play().catch(() => {}); 
+        return; 
+    }
+    
+    const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,          // False for standard TS HLS streams -> avoids byte-range stalls
+        startPosition: -1,
+        liveSyncDurationCount: 2.0,      // Keep 2 full segments buffer to prevent stalling
+        liveMaxLatencyDurationCount: 4,  // Smooth catchup if network delays
+        liveDurationInfinity: true,
+        liveBackBufferLength: 0,
+        backBufferLength: 0,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 30,
+        highBufferWatchdogPeriod: 2,
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 10,
+        manifestLoadingRetryDelay: 500,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 10,
+        fragLoadingRetryDelay: 500
+    });
+    hlsInstances[idx] = hls;
+
+    hls.attachMedia(video);
+    hls.loadSource(fullUrl);
+
+    if (video._syncInterval) clearInterval(video._syncInterval);
+    video._syncInterval = setInterval(() => {
+        if (!hls || !hls.liveSyncPosition || video.paused || video.readyState < 3) return;
+        const drift = hls.liveSyncPosition - video.currentTime;
+        if (drift > 4.5) {
+            video.playbackRate = 1.08; // Smoothly catch up without stuttering
+        } else if (drift > 3.0) {
+            video.playbackRate = 1.04;
+        } else {
+            video.playbackRate = 1.0;  // Normal speed
+        }
+    }, 1000);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        stopSimulatedCanvas(idx, video);
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        
+        const promise = video.play();
+        if (promise !== undefined) {
+            promise.catch(err => {
+                console.warn(`[HLS] Autoplay blocked for camera ${idx}, attaching interaction listener:`, err);
+                const resumePlay = () => {
+                    video.play().catch(() => {});
+                    document.removeEventListener("click", resumePlay);
+                    document.removeEventListener("touchstart", resumePlay);
+                };
+                document.addEventListener("click", resumePlay, { once: true });
+                document.addEventListener("touchstart", resumePlay, { once: true });
+            });
+        }
+    });
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.details === 'bufferStalledError' || data.details === 'levelLoadTimeOut') {
+            if (hls) hls.startLoad();
+            if (video.paused) {
+                video.play().catch(() => {});
+            }
+            return;
+        }
+        if (data.fatal) { 
+            switch(data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                    console.warn("[HLS] Fatal Network Error, destroying player and retrying in 2s...", data);
+                    try { hls.destroy(); } catch(_) {}
+                    delete hlsInstances[idx];
+                    setTimeout(() => playHLS(video, url, idx, true), 2000);
+                    break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                    console.warn("[HLS] Media Error, attempting recovery...", data);
+                    hls.recoverMediaError();
+                    break;
+                default:
+                    console.error("[HLS] Fatal HLS Error, restarting player...", data);
+                    try { hls.destroy(); } catch(_) {}
+                    delete hlsInstances[idx]; 
+                    setTimeout(() => playHLS(video, url, idx, true), 1000); 
+                    break;
+            }
+        }
+    });
+}
+
+async function waitAndSwitch(video, meta, idx, box, badge) {
+    const start = Date.now();
+    console.log(`[CLIENT-TIMER] waitAndSwitch started for Camera ${idx} at ${new Date().toLocaleTimeString()} (elapsed: 0ms)`);
+    while (Date.now() - start < 90000) { // Keep waiting up to 90s for PyTorch loading
+        if (!box.classList.contains("detecting")) return;
+        try {
+            const r = await fetch(meta.hls_detected + "?t=" + Date.now());
+            if (r.ok) {
+                const text = await r.text();
+                const tsCount = (text.match(/\.ts/g) || []).length;
+                if (tsCount >= 2) {
+                    if (!box.classList.contains("detecting")) {
+                        window.cameraTransitioning[idx] = false;
+                        return;
+                    }
+                    console.log(`[CLIENT-TIMER] Camera ${idx} segments ready (tsCount: ${tsCount}) at ${new Date().toLocaleTimeString()} (elapsed: ${Date.now() - start}ms). Switching stream...`);
+                    playHLS(video, meta.hls_detected, idx, true);
+                    if (badge) {
+                        badge.className = "mode-badge active";
+                        badge.textContent = "● AI ACTIVE";
+                    }
+                    fetch("/api/stop-raw", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ camera: idx })
+                    }).catch(() => {});
+                    window.cameraTransitioning[idx] = false;
+                    return;
+                }
+            }
+        } catch (_) {}
+        await new Promise(res => setTimeout(res, 400));
+    }
+    console.warn(`[CLIENT-TIMER] waitAndSwitch timed out for Camera ${idx} after ${Date.now() - start}ms`);
+    window.cameraTransitioning[idx] = false;
+}
+
+async function waitAndSwitchRaw(video, meta, idx, box, badge) {
+    const start = Date.now();
+    while (Date.now() - start < 90000) { // Keep waiting up to 90s for raw stream to recover
+        if (box.classList.contains("detecting")) {
+            window.cameraTransitioning[idx] = false;
+            return;
+        }
+        try {
+            const r = await fetch(meta.hls_raw + "?t=" + Date.now());
+            if (r.ok) {
+                const text = await r.text();
+                if (text.includes(".ts")) {
+                    if (box.classList.contains("detecting")) {
+                        window.cameraTransitioning[idx] = false;
+                        return;
+                    }
+                    playHLS(video, meta.hls_raw, idx, true);
+                    if (badge) badge.textContent = "○ RAW";
+                    window.cameraTransitioning[idx] = false;
+                    return;
+                }
+            }
+        } catch (_) {}
+        await new Promise(res => setTimeout(res, 400));
+    }
+    window.cameraTransitioning[idx] = false;
+}
+
+function renderUI(box, i, meta, status, cameraModelsMap) {
+    const video = box.querySelector("video");
+    const camStr = String(i);
+    const badge = box.querySelector(".mode-badge");
+    const assigned = cameraModelsMap[camStr] || [];
+    const assignedText = assigned.map(m => m.replace(".pt", "")).join(", ");
+    
+    const updateBadge = (isActive) => {
+        if (!badge) return;
+        if (isActive) {
+            badge.className = "mode-badge active";
+            badge.textContent = assignedText ? "● AI: " + assignedText : "● AI ACTIVE";
+        } else {
+            badge.className = "mode-badge raw";
+            badge.textContent = "○ RAW";
+        }
+    };
+
+    // Restore state
+    if (status.active && status.active.includes(camStr)) {
+        box.classList.add("detecting");
+        updateBadge(true);
+        playHLS(video, meta.hls_detected, i);
+    } else {
+        box.classList.remove("detecting");
+        updateBadge(false);
+        playHLS(video, meta.hls_raw, i);
+    }
+
+    // Interactive Stepper & Keyboard Arrow Handler for Conf, IoU, and Crowd ROI Limit Sliders
+    function setupInteractiveSlider(row, slider, span, isCrowd, onChange) {
+        if (!slider) return;
+
+        const step = parseFloat(slider.step) || (isCrowd ? 1 : 0.01);
+        const min = !isNaN(parseFloat(slider.min)) ? parseFloat(slider.min) : (isCrowd ? 1 : 0.05);
+        const max = !isNaN(parseFloat(slider.max)) ? parseFloat(slider.max) : (isCrowd ? 20 : 0.95);
+
+        const updateDisplay = (val) => {
+            if (!span) return;
+            if (isCrowd) {
+                const intVal = parseInt(val, 10);
+                span.textContent = `${intVal} ${intVal === 1 ? 'person' : 'people'}`;
+            } else {
+                span.textContent = parseFloat(val).toFixed(2);
+            }
+        };
+
+        const adjust = (direction) => {
+            let cur = isCrowd ? parseInt(slider.value, 10) : parseFloat(slider.value);
+            if (isNaN(cur)) cur = isCrowd ? 1 : 0.40;
+            let next;
+            if (direction > 0) {
+                next = Math.min(max, cur + step);
+            } else {
+                next = Math.max(min, cur - step);
+            }
+            if (isCrowd) {
+                next = Math.round(next);
+            } else {
+                next = Math.round(next * 100) / 100;
+            }
+            slider.value = next;
+            updateDisplay(next);
+            if (onChange) onChange();
+            slider.dispatchEvent(new Event("input", { bubbles: true }));
+            try { slider.focus(); } catch (_) {}
+        };
+
+        slider.setAttribute("tabindex", "0");
+        slider.addEventListener("pointerdown", () => {
+            try { slider.focus(); } catch (_) {}
+        });
+
+        slider.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                e.preventDefault();
+                adjust(-1);
+            } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                e.preventDefault();
+                adjust(1);
+            }
+        });
+
+        if (row) {
+            const btnDown = row.querySelector(".slider-step-down");
+            const btnUp = row.querySelector(".slider-step-up");
+            if (btnDown) {
+                btnDown.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adjust(-1);
+                });
+            }
+            if (btnUp) {
+                btnUp.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    adjust(1);
+                });
+            }
+        }
+    }
+
+    // Render Assigned Models with Per-Model Conf & IoU Sliders (Matching UI Screenshot, Smooth Dragging!)
+    const chipsList = box.querySelector(".assigned-chips-list");
+    let thresholdSyncTimer = null;
+    if (chipsList) {
+        const existingCards = chipsList.querySelectorAll(".model-card-box");
+        const currentModelKeys = assigned.map(m => m.replace(".pt", "")).join(",");
+        const existingModelKeys = Array.from(existingCards).map(c => (c.getAttribute("data-model") || "").replace(".pt", "")).join(",");
+
+        if (existingCards.length === 0 || currentModelKeys !== existingModelKeys) {
+            chipsList.innerHTML = "";
+            if (!assigned || assigned.length === 0) {
+                chipsList.innerHTML = '<span style="font-size:0.65rem;color:var(--muted);font-style:italic;">No models assigned</span>';
+                return;
+            }
+            const modelConfigs = meta.model_configs || {};
+            const uniqueAssigned = [];
+            const seenCleanNames = new Set();
+            (assigned || []).forEach(m => {
+                const clean = m.replace(".pt", "");
+                if (!seenCleanNames.has(clean)) {
+                    seenCleanNames.add(clean);
+                    uniqueAssigned.push(m);
+                }
+            });
+
+            const specializedModelNames = [
+                "ppe_new.pt", "nik_ppe_best.pt", "hf_ppe_detection.pt", "keremberke_ppe_gear.pt",
+                "hansung_ppe_violations.pt", "construction.pt", "Final_Fire_smoke.pt", "fire_smoke.pt",
+                "150_firehose_best.pt", "firehose.pt", "120_spillage_best.pt", "spillage.pt", "best_tape.pt", "tape.pt",
+                "sand_ext_chocks.pt", "sand_fire_ext_chock.pt", "tyre_final.pt", "tyre.pt",
+                "Valve_box_best.pt", "valve_box.pt", "dome_open_closed_best.pt", "dome.pt", "yolov8n.pt", "spark_arrestor.pt",
+                "leakage_best.pt", "leakage.pt", "smoking.pt", "ppe.pt", "tt_branding.pt"
+            ];
+            uniqueAssigned.forEach(m => {
+                const cleanName = m.replace(".pt", "");
+                const normM = m.endsWith(".pt") ? m : `${m}.pt`;
+                const mCfg = modelConfigs[m] || modelConfigs[cleanName] || {};
+                const enabled = Array.from(new Set(mCfg.enabled_classes || []));
+
+                if (enabled.length > 0) {
+                    enabled.forEach(cls => {
+                            const existingCard = chipsList.querySelector(`[data-model-clean="${cleanName}"][data-class="${cls}"]`);
+                            if (existingCard) return;
+
+                            const cCfg = (mCfg.class_configs && mCfg.class_configs[cls]) || {};
+                            const cVal = cCfg.conf !== undefined ? parseFloat(cCfg.conf).toFixed(2) : parseFloat(mCfg.conf || meta.conf || 0.40).toFixed(2);
+                            const iVal = cCfg.iou !== undefined ? parseFloat(cCfg.iou).toFixed(2) : parseFloat(mCfg.iou || meta.iou || 0.45).toFixed(2);
+                            const isCrowdPerson = (cls.toLowerCase() === "person" && (cleanName.toLowerCase() === "yolov8n" || cleanName.toLowerCase() === "crowd_detection"));
+                            const crowdThreshVal = parseInt(cCfg.crowd_threshold !== undefined ? cCfg.crowd_threshold : (mCfg.crowd_threshold !== undefined ? mCfg.crowd_threshold : 1), 10);
+
+                            let displayModelName = cleanName;
+                            if (cleanName.toLowerCase() === "yolov8n" || cleanName.toLowerCase() === "crowd_detection") {
+                                displayModelName = "Crowd Detection";
+                            } else if (cleanName.toLowerCase() === "intrusion") {
+                                displayModelName = "Intrusion Detection / Perimeter Intrusion";
+                            } else if (cleanName.toLowerCase() === "non_working_hours") {
+                                displayModelName = "Intrusion in Non-Working Hours";
+                            } else if (cleanName.toLowerCase() === "vehicle_intrusion") {
+                                displayModelName = "Vehicle Intrusion Detection";
+                            } else if (cleanName.toLowerCase() === "unauthorized_activity") {
+                                displayModelName = "Unauthorized Activity (Parking Area)";
+                            } else if (cleanName.toLowerCase() === "leakage_best" || cleanName.toLowerCase() === "leakage") {
+                                displayModelName = "Leakage Detection";
+                            } else if (cleanName.toLowerCase() === "smoking") {
+                                displayModelName = "Smoking Detection";
+                            } else if (cleanName.toLowerCase().includes("spark_arrest")) {
+                                displayModelName = "Spark Arrestor Compliance";
+                            }
+
+                            const isNonWorkingHours = (cleanName.toLowerCase() === "non_working_hours");
+                            const nwhStartVal = mCfg.off_hours_start || cCfg.off_hours_start || "18:00";
+                            const nwhEndVal = mCfg.off_hours_end || cCfg.off_hours_end || "06:00";
+
+                            const card = document.createElement("div");
+                            card.className = "model-card-box";
+                            card.setAttribute("data-model", m);
+                            card.setAttribute("data-model-clean", cleanName);
+                            card.setAttribute("data-class", cls);
+                            card.style.cssText = "width:100%;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;margin-bottom:6px;";
+                            card.innerHTML = `
+                                <div class="model-chip-header" style="margin-bottom:6px;">
+                                    <span class="model-chip checked" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,170,0.12);color:#00ffaa;border:1px solid rgba(0,255,170,0.3);font-family:var(--mono);font-weight:600;display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;background:#f5a623;border-radius:2px;display:inline-block;"></span>${displayModelName} - ${cls}</span>
+                                </div>
+                                <div class="thresholds compact" style="display:flex;gap:12px;flex-wrap:wrap;">
+                                    <div class="thresh-row thresh-row-conf" style="flex:1;min-width:110px;">
+                                        <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);user-select:none;">
+                                            <span>Conf</span>
+                                            <span style="display:inline-flex;align-items:center;gap:4px;">
+                                                <button type="button" class="slider-step-down" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Decrease (Left Arrow)">◀</button>
+                                                <span class="model-conf-val" style="color:#00ffaa;font-weight:700;min-width:28px;text-align:center;">${cVal}</span>
+                                                <button type="button" class="slider-step-up" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Increase (Right Arrow)">▶</button>
+                                            </span>
+                                        </label>
+                                        <input class="model-conf-slider" type="range" min="0.05" max="0.95" step="0.01" value="${cVal}" tabindex="0" style="width:100%;">
+                                    </div>
+                                    <div class="thresh-row thresh-row-iou" style="flex:1;min-width:110px;">
+                                        <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);user-select:none;">
+                                            <span>IoU</span>
+                                            <span style="display:inline-flex;align-items:center;gap:4px;">
+                                                <button type="button" class="slider-step-down" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Decrease (Left Arrow)">◀</button>
+                                                <span class="model-iou-val" style="color:#00ffaa;font-weight:700;min-width:28px;text-align:center;">${iVal}</span>
+                                                <button type="button" class="slider-step-up" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Increase (Right Arrow)">▶</button>
+                                            </span>
+                                        </label>
+                                        <input class="model-iou-slider" type="range" min="0.05" max="0.95" step="0.01" value="${iVal}" tabindex="0" style="width:100%;">
+                                    </div>
+                                    ${isCrowdPerson ? `
+                                    <div class="thresh-row thresh-row-crowd" style="flex:1;min-width:145px;">
+                                        <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);user-select:none;">
+                                            <span>Crowd ROI Limit</span>
+                                            <span style="display:inline-flex;align-items:center;gap:4px;">
+                                                <button type="button" class="slider-step-down" style="background:rgba(255,255,255,0.06);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Decrease (Left Arrow)">◀</button>
+                                                <span class="model-crowd-thresh-val" style="color:#38bdf8;font-weight:700;min-width:55px;text-align:center;">${crowdThreshVal} ${crowdThreshVal === 1 ? 'person' : 'people'}</span>
+                                                <button type="button" class="slider-step-up" style="background:rgba(255,255,255,0.06);border:1px solid rgba(56,189,248,0.4);color:#38bdf8;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Increase (Right Arrow)">▶</button>
+                                            </span>
+                                        </label>
+                                        <input class="model-crowd-thresh-slider" type="range" min="1" max="20" step="1" value="${crowdThreshVal}" style="accent-color:#38bdf8;width:100%;" tabindex="0">
+                                    </div>` : ''}
+                                    ${isNonWorkingHours ? `
+                                    <div class="thresh-row thresh-row-nwh" style="flex:100%;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(225,29,72,0.3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.68rem;">
+                                        <span style="color:#fb7185;font-weight:700;">Off-Hours:</span>
+                                        <label style="color:var(--muted);display:inline-flex;align-items:center;gap:4px;">
+                                            From
+                                            <input class="nwh-time-start" type="time" value="${nwhStartVal}" style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;padding:2px 6px;font-size:0.68rem;outline:none;font-family:var(--mono);">
+                                        </label>
+                                        <label style="color:var(--muted);display:inline-flex;align-items:center;gap:4px;">
+                                            To
+                                            <input class="nwh-time-end" type="time" value="${nwhEndVal}" style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;padding:2px 6px;font-size:0.68rem;outline:none;font-family:var(--mono);">
+                                        </label>
+                                    </div>` : ''}
+                                </div>`;
+                            chipsList.appendChild(card);
+
+                            const cSlider = card.querySelector(".model-conf-slider");
+                            const iSlider = card.querySelector(".model-iou-slider");
+                            const crSlider = card.querySelector(".model-crowd-thresh-slider");
+                            const cSpan = card.querySelector(".model-conf-val");
+                            const iSpan = card.querySelector(".model-iou-val");
+                            const crSpan = card.querySelector(".model-crowd-thresh-val");
+
+                            const syncClassThreshold = () => {
+                                clearTimeout(thresholdSyncTimer);
+                                thresholdSyncTimer = setTimeout(() => {
+                                    const cNum = parseFloat(cSlider.value);
+                                    const iNum = parseFloat(iSlider.value);
+                                    meta.model_configs = meta.model_configs || {};
+                                    meta.model_configs[normM] = meta.model_configs[normM] || {};
+                                    meta.model_configs[normM].class_configs = meta.model_configs[normM].class_configs || {};
+                                    
+                                    const clsCfg = { conf: cNum, iou: iNum };
+                                    if (crSlider) {
+                                        const crNum = parseInt(crSlider.value, 10);
+                                        clsCfg.crowd_threshold = crNum;
+                                        meta.model_configs[normM].crowd_threshold = crNum;
+                                    }
+                                    if (isNonWorkingHours) {
+                                        const sInput = card.querySelector(".nwh-time-start");
+                                        const eInput = card.querySelector(".nwh-time-end");
+                                        if (sInput) {
+                                            meta.model_configs[normM].off_hours_start = sInput.value;
+                                            meta.model_configs[cleanName] = meta.model_configs[cleanName] || {};
+                                            meta.model_configs[cleanName].off_hours_start = sInput.value;
+                                        }
+                                        if (eInput) {
+                                            meta.model_configs[normM].off_hours_end = eInput.value;
+                                            meta.model_configs[cleanName] = meta.model_configs[cleanName] || {};
+                                            meta.model_configs[cleanName].off_hours_end = eInput.value;
+                                        }
+                                    }
+                                    meta.model_configs[normM].class_configs[cls] = Object.assign({}, meta.model_configs[normM].class_configs[cls] || {}, clsCfg);
+
+                                    meta.model_configs[cleanName] = meta.model_configs[cleanName] || {};
+                                    meta.model_configs[cleanName].class_configs = meta.model_configs[cleanName].class_configs || {};
+                                    meta.model_configs[cleanName].class_configs[cls] = Object.assign({}, meta.model_configs[cleanName].class_configs[cls] || {}, clsCfg);
+                                    if (crSlider) {
+                                        meta.model_configs[cleanName].crowd_threshold = parseInt(crSlider.value, 10);
+                                    }
+
+                                    if (window.roiDrawStates && window.roiDrawStates[i] && window.roiDrawStates[i].vertices && window.roiDrawStates[i].vertices.length === 2) {
+                                        meta.model_configs.roi_polygon = window.roiDrawStates[i].vertices;
+                                    }
+
+                                    fetch("/api/update-thresholds", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ camera: i, model: m, model_configs: meta.model_configs })
+                                    }).catch(() => {});
+                                }, 200);
+                            };
+
+                            if (cSlider) {
+                                cSlider.oninput = () => {
+                                    if (cSpan) cSpan.textContent = parseFloat(cSlider.value).toFixed(2);
+                                    syncClassThreshold();
+                                };
+                            }
+                            if (iSlider) {
+                                iSlider.oninput = () => {
+                                    if (iSpan) iSpan.textContent = parseFloat(iSlider.value).toFixed(2);
+                                    syncClassThreshold();
+                                };
+                            }
+                            if (crSlider) {
+                                crSlider.oninput = () => {
+                                    const val = parseInt(crSlider.value, 10);
+                                    if (crSpan) crSpan.textContent = `${val} ${val === 1 ? 'person' : 'people'}`;
+                                    syncClassThreshold();
+                                };
+                            }
+                            if (isNonWorkingHours) {
+                                const sInput = card.querySelector(".nwh-time-start");
+                                const eInput = card.querySelector(".nwh-time-end");
+                                if (sInput) sInput.onchange = () => syncClassThreshold();
+                                if (eInput) eInput.onchange = () => syncClassThreshold();
+                            }
+
+                            const cRow = card.querySelector(".thresh-row-conf") || (cSlider && cSlider.closest(".thresh-row"));
+                            const iRow = card.querySelector(".thresh-row-iou") || (iSlider && iSlider.closest(".thresh-row"));
+                            const crRow = card.querySelector(".thresh-row-crowd") || (crSlider && crSlider.closest(".thresh-row"));
+
+                            setupInteractiveSlider(cRow, cSlider, cSpan, false, syncClassThreshold);
+                            setupInteractiveSlider(iRow, iSlider, iSpan, false, syncClassThreshold);
+                            if (crSlider) {
+                                setupInteractiveSlider(crRow, crSlider, crSpan, true, syncClassThreshold);
+                            }
+                        });
+                } else {
+                    const cVal = mCfg.conf !== undefined ? parseFloat(mCfg.conf).toFixed(2) : (meta.conf !== undefined ? parseFloat(meta.conf).toFixed(2) : "0.40");
+                    const iVal = mCfg.iou !== undefined ? parseFloat(mCfg.iou).toFixed(2) : (meta.iou !== undefined ? parseFloat(meta.iou).toFixed(2) : "0.45");
+
+                    let displayM = cleanName;
+                    if (cleanName.toLowerCase() === "yolov8n" || cleanName.toLowerCase() === "crowd_detection") {
+                        displayM = "Crowd Detection";
+                    } else if (cleanName.toLowerCase() === "intrusion") {
+                        displayM = "Intrusion Detection / Perimeter Intrusion";
+                    } else if (cleanName.toLowerCase() === "non_working_hours") {
+                        displayM = "Intrusion in Non-Working Hours";
+                    } else if (cleanName.toLowerCase() === "vehicle_intrusion") {
+                        displayM = "Vehicle Intrusion Detection";
+                    } else if (cleanName.toLowerCase() === "unauthorized_activity") {
+                        displayM = "Unauthorized Activity (Parking Area)";
+                    } else if (cleanName.toLowerCase() === "leakage_best" || cleanName.toLowerCase() === "leakage") {
+                        displayM = "Leakage Detection";
+                    } else if (cleanName.toLowerCase() === "smoking") {
+                        displayM = "Smoking Detection";
+                    } else if (cleanName.toLowerCase().includes("spark_arrest")) {
+                        displayM = "Spark Arrestor Compliance";
+                    }
+                    const isNwhWhole = (cleanName.toLowerCase() === "non_working_hours");
+                    const nwhStartVal = mCfg.off_hours_start || "18:00";
+                    const nwhEndVal = mCfg.off_hours_end || "06:00";
+
+                    const card = document.createElement("div");
+                    card.className = "model-card-box";
+                    card.setAttribute("data-model", m);
+                    card.style.cssText = "width:100%;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;margin-bottom:6px;";
+                    card.innerHTML = `
+                        <div class="model-chip-header" style="margin-bottom:6px;">
+                            <span class="model-chip checked" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,170,0.12);color:#00ffaa;border:1px solid rgba(0,255,170,0.3);font-family:var(--mono);font-weight:600;display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;background:#f5a623;border-radius:2px;display:inline-block;"></span>${displayM}</span>
+                        </div>
+                        <div class="thresholds compact" style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <div class="thresh-row thresh-row-conf" style="flex:1;min-width:110px;">
+                                <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);user-select:none;">
+                                    <span>Conf</span>
+                                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                                        <button type="button" class="slider-step-down" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Decrease (Left Arrow)">◀</button>
+                                        <span class="model-conf-val" style="color:#00ffaa;font-weight:700;min-width:28px;text-align:center;">${cVal}</span>
+                                        <button type="button" class="slider-step-up" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Increase (Right Arrow)">▶</button>
+                                    </span>
+                                </label>
+                                <input class="model-conf-slider" type="range" min="0.05" max="0.95" step="0.01" value="${cVal}" tabindex="0" style="width:100%;">
+                            </div>
+                            <div class="thresh-row thresh-row-iou" style="flex:1;min-width:110px;">
+                                <label style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);user-select:none;">
+                                    <span>IoU</span>
+                                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                                        <button type="button" class="slider-step-down" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Decrease (Left Arrow)">◀</button>
+                                        <span class="model-iou-val" style="color:#00ffaa;font-weight:700;min-width:28px;text-align:center;">${iVal}</span>
+                                        <button type="button" class="slider-step-up" style="background:rgba(255,255,255,0.06);border:1px solid rgba(0,255,170,0.3);color:#00ffaa;border-radius:3px;padding:0 5px;font-size:0.65rem;cursor:pointer;line-height:1.2;font-weight:bold;user-select:none;" title="Increase (Right Arrow)">▶</button>
+                                    </span>
+                                </label>
+                                <input class="model-iou-slider" type="range" min="0.05" max="0.95" step="0.01" value="${iVal}" tabindex="0" style="width:100%;">
+                            </div>
+                            ${isNwhWhole ? `
+                            <div class="thresh-row thresh-row-nwh" style="flex:100%;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(225,29,72,0.3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.68rem;">
+                                <span style="color:#fb7185;font-weight:700;">Off-Hours:</span>
+                                <label style="color:var(--muted);display:inline-flex;align-items:center;gap:4px;">
+                                    From
+                                    <input class="nwh-time-start" type="time" value="${nwhStartVal}" style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;padding:2px 6px;font-size:0.68rem;outline:none;font-family:var(--mono);">
+                                </label>
+                                <label style="color:var(--muted);display:inline-flex;align-items:center;gap:4px;">
+                                    To
+                                    <input class="nwh-time-end" type="time" value="${nwhEndVal}" style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;padding:2px 6px;font-size:0.68rem;outline:none;font-family:var(--mono);">
+                                </label>
+                            </div>` : ''}
+                        </div>`;
+                    chipsList.appendChild(card);
+
+                    const cSlider = card.querySelector(".model-conf-slider");
+                    const iSlider = card.querySelector(".model-iou-slider");
+                    const cSpan = card.querySelector(".model-conf-val");
+                    const iSpan = card.querySelector(".model-iou-val");
+
+                    const syncModelThreshold = () => {
+                        clearTimeout(thresholdSyncTimer);
+                        thresholdSyncTimer = setTimeout(() => {
+                            const cNum = parseFloat(cSlider.value);
+                            const iNum = parseFloat(iSlider.value);
+                            meta.model_configs = meta.model_configs || {};
+                            const normM = m.endsWith(".pt") ? m : `${m}.pt`;
+                            meta.model_configs[normM] = { conf: cNum, iou: iNum };
+                            meta.model_configs[cleanName] = { conf: cNum, iou: iNum };
+
+                            if (isNwhWhole) {
+                                const sInput = card.querySelector(".nwh-time-start");
+                                const eInput = card.querySelector(".nwh-time-end");
+                                if (sInput) {
+                                    meta.model_configs[normM].off_hours_start = sInput.value;
+                                    meta.model_configs[cleanName].off_hours_start = sInput.value;
+                                }
+                                if (eInput) {
+                                    meta.model_configs[normM].off_hours_end = eInput.value;
+                                    meta.model_configs[cleanName].off_hours_end = eInput.value;
+                                }
+                            }
+
+                            if (window.roiDrawStates && window.roiDrawStates[i] && window.roiDrawStates[i].vertices && window.roiDrawStates[i].vertices.length === 2) {
+                                meta.model_configs.roi_polygon = window.roiDrawStates[i].vertices;
+                            }
+
+                            fetch("/api/update-thresholds", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ camera: i, model: m, conf: cNum, iou: iNum, model_configs: meta.model_configs })
+                            }).catch(() => {});
+                        }, 200);
+                    };
+
+                    if (cSlider) {
+                        cSlider.oninput = () => {
+                            if (cSpan) cSpan.textContent = parseFloat(cSlider.value).toFixed(2);
+                            syncModelThreshold();
+                        };
+                    }
+                    if (iSlider) {
+                        iSlider.oninput = () => {
+                            if (iSpan) iSpan.textContent = parseFloat(iSlider.value).toFixed(2);
+                            syncModelThreshold();
+                        };
+                    }
+                    if (isNwhWhole) {
+                        const sInput = card.querySelector(".nwh-time-start");
+                        const eInput = card.querySelector(".nwh-time-end");
+                        if (sInput) sInput.onchange = () => syncModelThreshold();
+                        if (eInput) eInput.onchange = () => syncModelThreshold();
+                    }
+
+                    const cRow = card.querySelector(".thresh-row-conf") || (cSlider && cSlider.closest(".thresh-row"));
+                    const iRow = card.querySelector(".thresh-row-iou") || (iSlider && iSlider.closest(".thresh-row"));
+                    setupInteractiveSlider(cRow, cSlider, cSpan, false, syncModelThreshold);
+                    setupInteractiveSlider(iRow, iSlider, iSpan, false, syncModelThreshold);
+                }
+            });
+        }
+    }
+
+    box.querySelector(".start").onclick = async () => {
+        const domModelConfigs = JSON.parse(JSON.stringify(meta.model_configs || {}));
+        if (window.roiDrawStates && window.roiDrawStates[i] && window.roiDrawStates[i].vertices && window.roiDrawStates[i].vertices.length === 2) {
+            domModelConfigs.roi_polygon = window.roiDrawStates[i].vertices;
+        }
+
+        const models = [];
+        const domEnabledClasses = {};
+
+        // 1. Gather all active models and classes directly from the DOM cards on screen
+        box.querySelectorAll(".model-card-box").forEach(card => {
+            const mName = card.getAttribute("data-model");
+            const cls = card.getAttribute("data-class");
+            if (mName) {
+                const norm = mName.endsWith(".pt") ? mName : `${mName}.pt`;
+                const clean = mName.replace(".pt", "");
+                if (!models.includes(norm)) models.push(norm);
+                if (cls) {
+                    domEnabledClasses[norm] = domEnabledClasses[norm] || [];
+                    if (!domEnabledClasses[norm].includes(cls)) domEnabledClasses[norm].push(cls);
+                    domEnabledClasses[clean] = domEnabledClasses[clean] || [];
+                    if (!domEnabledClasses[clean].includes(cls)) domEnabledClasses[clean].push(cls);
+                }
+            }
+        });
+
+        // 2. Fallback: check domModelConfigs if no DOM cards found
+        if (!models.length) {
+            for (const [mKey, mVal] of Object.entries(domModelConfigs)) {
+                if (mKey === "roi_polygon") continue;
+                const normM = mKey.endsWith(".pt") ? mKey : `${mKey}.pt`;
+                if (!models.includes(normM)) models.push(normM);
+            }
+        }
+        if (!models.length) {
+            const cm = await (await fetch("/api/camera-models")).json().catch(() => ({}));
+            models.push(...(cm[camStr] || []));
+        }
+        if (!models.length) return alert("No active models or classes assigned");
+
+        // 3. Build class-specific confidence, iou, and crowd_threshold configurations
+        box.querySelectorAll(".model-card-box").forEach(card => {
+            const mName = card.getAttribute("data-model");
+            const cls = card.getAttribute("data-class");
+            const cSlider = card.querySelector(".model-conf-slider");
+            const iSlider = card.querySelector(".model-iou-slider");
+            const crSlider = card.querySelector(".model-crowd-thresh-slider");
+            if (mName && cSlider && iSlider) {
+                const cVal = parseFloat(cSlider.value);
+                const iVal = parseFloat(iSlider.value);
+                let crNum = crSlider ? parseInt(crSlider.value, 10) : undefined;
+                const norm = mName.endsWith(".pt") ? mName : `${mName}.pt`;
+                const clean = mName.replace(".pt", "");
+                
+                const activeClasses = domEnabledClasses[norm] || domEnabledClasses[clean] ||
+                                    (meta.model_configs && meta.model_configs[norm] && meta.model_configs[norm].enabled_classes) ||
+                                    (meta.model_configs && meta.model_configs[clean] && meta.model_configs[clean].enabled_classes) || [];
+                if (cls) {
+                    domModelConfigs[norm] = domModelConfigs[norm] || {};
+                    domModelConfigs[norm].enabled_classes = activeClasses;
+                    domModelConfigs[norm].class_configs = domModelConfigs[norm].class_configs || {};
+
+                    const existingClassCfg = domModelConfigs[norm].class_configs[cls] || {};
+                    if ((crNum === undefined || isNaN(crNum)) && existingClassCfg.crowd_threshold !== undefined) {
+                        crNum = existingClassCfg.crowd_threshold;
+                    }
+
+                    const clsPayload = { conf: cVal, iou: iVal };
+                    if (crNum !== undefined && !isNaN(crNum)) {
+                        clsPayload.crowd_threshold = crNum;
+                        domModelConfigs[norm].crowd_threshold = crNum;
+                    }
+                    domModelConfigs[norm].class_configs[cls] = Object.assign({}, existingClassCfg, clsPayload);
+
+                    domModelConfigs[clean] = domModelConfigs[clean] || {};
+                    domModelConfigs[clean].enabled_classes = activeClasses;
+                    domModelConfigs[clean].class_configs = domModelConfigs[clean].class_configs || {};
+                    domModelConfigs[clean].class_configs[cls] = Object.assign({}, existingClassCfg, clsPayload);
+                    if (crNum !== undefined && !isNaN(crNum)) {
+                        domModelConfigs[clean].crowd_threshold = crNum;
+                    }
+                } else {
+                    const existingPt = domModelConfigs[norm] || {};
+                    const ptPayload = { conf: cVal, iou: iVal, enabled_classes: activeClasses };
+                    if (crNum !== undefined && !isNaN(crNum)) {
+                        ptPayload.crowd_threshold = crNum;
+                    }
+                    domModelConfigs[norm] = Object.assign({}, existingPt, ptPayload);
+                    domModelConfigs[clean] = Object.assign({}, existingPt, ptPayload);
+                }
+                if (mName.toLowerCase().includes("non_working")) {
+                    const sInput = card.querySelector(".nwh-time-start");
+                    const eInput = card.querySelector(".nwh-time-end");
+                    if (sInput) {
+                        domModelConfigs[norm].off_hours_start = sInput.value;
+                        domModelConfigs[clean].off_hours_start = sInput.value;
+                    }
+                    if (eInput) {
+                        domModelConfigs[norm].off_hours_end = eInput.value;
+                        domModelConfigs[clean].off_hours_end = eInput.value;
+                    }
+                }
+            }
+        });
+
+        const conf = meta.conf || 0.40;
+        const iou = meta.iou || 0.45;
+        const location = meta.location || meta.label || "Camera " + (i+1);
+        
+        console.log(`[CLIENT-TIMER] Start button clicked for Camera ${i} at ${new Date().toLocaleTimeString()}`);
+        box.classList.add("detecting");
+        updateBadge(true);
+        if (badge) badge.textContent = "● AI: STARTING...";
+        
+        window.cameraTransitioning[camStr] = true;
+        const apiStart = Date.now();
+        console.log(`[CLIENT-TIMER] Sending /api/start for Camera ${i} at ${new Date().toLocaleTimeString()}...`);
+        await fetch("/api/start", { 
+            method: "POST", 
+            headers: { "Content-Type": "application/json" }, 
+            body: JSON.stringify({ camera: i, models, rtsp: meta.rtsp, conf, iou, location, model_configs: domModelConfigs }) 
+        });
+        console.log(`[CLIENT-TIMER] /api/start response received for Camera ${i} at ${new Date().toLocaleTimeString()} (duration: ${Date.now() - apiStart}ms)`);
+        waitAndSwitch(video, meta, i, box, badge);
+    };
+
+    box.querySelector(".stop").onclick = async () => {
+        box.classList.remove("detecting");
+        updateBadge(false);
+        if (badge) badge.textContent = "○ RAW: SWITCHING...";
+
+        window.cameraTransitioning[camStr] = true;
+        await fetch("/api/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ camera: i }) });
+        waitAndSwitchRaw(video, meta, i, box, badge);
+    };
+}
+
+async function init() {
+    const [streams, status, cameraModels] = await Promise.all([
+        fetch("/api/streams").then(r => r.json()),
+        fetch("/api/status").then(r => r.json()),
+        fetch("/api/camera-models").then(r => r.json())
+    ]);
+
+    const streamsById = new Map(streams.map(stream => [String(stream.id), stream]));
+    document.querySelectorAll(".box").forEach((box) => {
+        const camId = box.dataset.cameraId;
+        const meta = streamsById.get(String(camId));
+        if (meta) renderUI(box, Number(camId), meta, status, cameraModels);
+        else box.style.display = "none";
+    });
+}
+
+// Background sync for thresholds and status across all client devices
+let pollInterval = null;
+function startClientSync() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(async () => {
+        try {
+            const [streams, status] = await Promise.all([
+                fetch("/api/streams?t=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
+                fetch("/api/status?t=" + Date.now(), { cache: "no-store" }).then(r => r.json())
+            ]);
+            const streamsById = new Map(streams.map(s => [String(s.id), s]));
+            document.querySelectorAll(".box").forEach((box) => {
+                const camId = box.dataset.cameraId;
+                if (window.cameraTransitioning[camId]) return;
+                const meta = streamsById.get(String(camId));
+                if (!meta) return;
+
+                // ── Legacy global sliders (fallback) ──────────────────────────
+                const confSlider = box.querySelector(".conf-slider");
+                const iouSlider  = box.querySelector(".iou-slider");
+                if (confSlider && document.activeElement !== confSlider && meta.conf !== undefined) {
+                    if (Math.abs(parseFloat(confSlider.value) - parseFloat(meta.conf)) > 0.005) {
+                        confSlider.value = meta.conf;
+                        const span = box.querySelector(".conf-val");
+                        if (span) span.textContent = parseFloat(meta.conf).toFixed(2);
+                    }
+                }
+                if (iouSlider && document.activeElement !== iouSlider && meta.iou !== undefined) {
+                    if (Math.abs(parseFloat(iouSlider.value) - parseFloat(meta.iou)) > 0.005) {
+                        iouSlider.value = meta.iou;
+                        const span = box.querySelector(".iou-val");
+                        if (span) span.textContent = parseFloat(meta.iou).toFixed(2);
+                    }
+                }
+
+                // ── Per-model per-class sliders (model-conf-slider / model-iou-slider) ──
+                // These are the NEW sliders shown in the "Assigned Models" section.
+                // Sync them from the server-side model_configs so that when System A
+                // changes a threshold, System B sees the updated value within ~3 seconds.
+                const modelConfigs = meta.model_configs || {};
+                box.querySelectorAll(".model-card-box").forEach(card => {
+                    const modelName  = card.getAttribute("data-model") || "";
+                    const className  = card.getAttribute("data-class");  // may be null
+                    const normM      = modelName.endsWith(".pt") ? modelName : `${modelName}.pt`;
+                    const cleanM     = normM.replace(".pt", "");
+                    const mCfg       = modelConfigs[normM] || modelConfigs[cleanM] || {};
+
+                    let srvConf = null, srvIou = null, srvCrowd = null;
+                    if (className) {
+                        // Per-class config takes precedence (only sync if specifically configured)
+                        const cCfg = (mCfg.class_configs && mCfg.class_configs[className]);
+                        if (cCfg && cCfg.conf !== undefined) srvConf = parseFloat(cCfg.conf);
+                        if (cCfg && cCfg.iou !== undefined)  srvIou  = parseFloat(cCfg.iou);
+                        if (cCfg && cCfg.crowd_threshold !== undefined) srvCrowd = parseInt(cCfg.crowd_threshold, 10);
+                        else if (mCfg.crowd_threshold !== undefined) srvCrowd = parseInt(mCfg.crowd_threshold, 10);
+                    } else {
+                        srvConf = mCfg.conf !== undefined ? parseFloat(mCfg.conf)
+                                : (meta.conf !== undefined ? parseFloat(meta.conf) : null);
+                        srvIou  = mCfg.iou  !== undefined ? parseFloat(mCfg.iou)
+                                : (meta.iou  !== undefined ? parseFloat(meta.iou) : null);
+                        if (mCfg.crowd_threshold !== undefined) srvCrowd = parseInt(mCfg.crowd_threshold, 10);
+                    }
+
+                    const cSlider = card.querySelector(".model-conf-slider");
+                    const iSlider = card.querySelector(".model-iou-slider");
+                    const crSlider = card.querySelector(".model-crowd-thresh-slider");
+                    const cSpan   = card.querySelector(".model-conf-val");
+                    const iSpan   = card.querySelector(".model-iou-val");
+                    const crSpan  = card.querySelector(".model-crowd-thresh-val");
+
+                    // Only update if user is not actively dragging and value changed
+                    if (cSlider && document.activeElement !== cSlider && srvConf !== null) {
+                        if (Math.abs(parseFloat(cSlider.value) - srvConf) > 0.005) {
+                            cSlider.value = srvConf.toFixed(2);
+                            if (cSpan) cSpan.textContent = srvConf.toFixed(2);
+                        }
+                    }
+                    if (iSlider && document.activeElement !== iSlider && srvIou !== null) {
+                        if (Math.abs(parseFloat(iSlider.value) - srvIou) > 0.005) {
+                            iSlider.value = srvIou.toFixed(2);
+                            if (iSpan) iSpan.textContent = srvIou.toFixed(2);
+                        }
+                    }
+                    if (crSlider && document.activeElement !== crSlider && srvCrowd !== null) {
+                        if (parseInt(crSlider.value, 10) !== srvCrowd) {
+                            crSlider.value = srvCrowd;
+                            if (crSpan) crSpan.textContent = `${srvCrowd} ${srvCrowd === 1 ? 'person' : 'people'}`;
+                        }
+                    }
+                });
+
+                // Synchronize detection state across different browser tabs without restarting video
+                const isDetecting = status.active && status.active.includes(String(camId));
+                const badge = box.querySelector(".mode-badge");
+                const video = box.querySelector("video");
+                
+                if (isDetecting && !box.classList.contains("detecting")) {
+                    box.classList.add("detecting");
+                    if (badge) { badge.className = "mode-badge active"; badge.textContent = "● AI: STARTING..."; }
+                    window.cameraTransitioning[camId] = true;
+                    waitAndSwitch(video, meta, Number(camId), box, badge);
+                } else if (!isDetecting && box.classList.contains("detecting")) {
+                    box.classList.remove("detecting");
+                    if (badge) { badge.className = "mode-badge raw"; badge.textContent = "○ RAW: SWITCHING..."; }
+                    window.cameraTransitioning[camId] = true;
+                    waitAndSwitchRaw(video, meta, Number(camId), box, badge);
+                } else if (video && !window.cameraTransitioning[camId]) {
+                    // Auto-recover stalled/errored streams (e.g. after server restart or transient network failure)
+                    const isStalledOrErrored = video.error || video.ended || (video.readyState === 0 && !hlsInstances[camId]);
+                    if (isStalledOrErrored && !video._recovering) {
+                        video._recovering = true;
+                        const targetUrl = isDetecting ? meta.hls_detected : meta.hls_raw;
+                        console.warn(`[AUTORECOVER] Video stream stalled/errored for Camera ${camId}, auto-recovering...`);
+                        playHLS(video, targetUrl, Number(camId), true).finally(() => {
+                            setTimeout(() => { video._recovering = false; }, 3000);
+                        });
+                    }
+                }
+            });
+        } catch (_) {}
+    }, 3000);  // Poll every 3s — fast enough for cross-device sync, light enough for Pi
+}
+
+window.RtspDetection = { init };
+window.addEventListener("load", () => {
+    init();
+    startClientSync();
+});
+window.addEventListener("rtsp-dashboard-ready", () => {
+    init();
+    startClientSync();
+});
+
+
+
+
+// const hlsInstances = {};
+
+// function stopSimulatedCanvas(idx, video) {
+//     if (video && video.srcObject) { video.srcObject = null; }
+// }
+
+// function playHLS(video, url, idx) {
+//     if (hlsInstances[idx]) { hlsInstances[idx].destroy(); delete hlsInstances[idx]; }
+//     const fullUrl = url + "?t=" + Date.now();
+//     if (typeof Hls === "undefined" || !Hls.isSupported()) { video.src = fullUrl; video.play().catch(() => {}); return; }
+    
+//     const hls = new Hls({
+//         enableWorker: true,
+//         lowLatencyMode: true,
+//         liveSyncDurationCount: 2,
+//         liveBackBufferLength: 0,  // Don't keep old segments — prevents stale video on page refresh
+//         backBufferLength: 0,      // Clear back-buffer so switching streams always plays from live edge
+//         maxBufferLength: 6
+//     });
+//     hlsInstances[idx] = hls;
+//     hls.loadSource(fullUrl);
+//     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+//         stopSimulatedCanvas(idx, video);
+//         hls.attachMedia(video);
+//         video.play().catch(() => {});
+//     });
+//     hls.on(Hls.Events.ERROR, (_, data) => {
+//         if (data.fatal) { hls.destroy(); delete hlsInstances[idx]; setTimeout(() => playHLS(video, url, idx), 2000); }
+//     });
+// }
+
+// async function waitAndSwitch(video, meta, idx) {
+//     const start = Date.now();
+//     while (Date.now() - start < 30000) {
+//         try {
+//             const r = await fetch(meta.hls_detected + "?t=" + Date.now());
+//             if (r.ok && (await r.text()).includes(".ts")) {
+//                 playHLS(video, meta.hls_detected, idx);
+//                 return;
+//             }
+//         } catch (_) {}
+//         await new Promise(res => setTimeout(res, 500));
+//     }
+// }
+
+// function renderUI(box, i, meta, status, cameraModelsMap) {
+//     const video = box.querySelector("video");
+//     const camStr = String(i);
+//     const badge = box.querySelector(".mode-badge");
+//     const assigned = cameraModelsMap[camStr] || [];
+//     const assignedText = assigned.map(m => m.replace(".pt", "")).join(", ");
+    
+//     const updateBadge = (isActive) => {
+//         if (!badge) return;
+//         if (isActive) {
+//             badge.className = "mode-badge active";
+//             badge.textContent = assignedText ? "● AI: " + assignedText : "● AI ACTIVE";
+//         } else {
+//             badge.className = "mode-badge raw";
+//             badge.textContent = "○ RAW";
+//         }
+//     };
+
+//     // Restore state
+//     if (status.active.includes(camStr)) {
+//         box.classList.add("detecting");
+//         updateBadge(true);
+//         playHLS(video, meta.hls_detected, i);
+//     } else {
+//         updateBadge(false);
+//         playHLS(video, meta.hls_raw, i);
+//     }
+
+//     // Render Assigned Models
+//     const chipsList = box.querySelector(".assigned-chips-list");
+//     if (chipsList) {
+//         chipsList.innerHTML = "";
+//         assigned.forEach(m => {
+//             const chip = document.createElement("span");
+//             chip.className = "model-chip checked";
+//             chip.textContent = m.replace(".pt", "");
+//             chipsList.appendChild(chip);
+//         });
+//     }
+
+//     // Restore Sliders
+//     const confSlider = box.querySelector(".conf-slider");
+//     const iouSlider = box.querySelector(".iou-slider");
+//     if (confSlider) {
+//         confSlider.oninput = () => box.querySelector(".conf-val").textContent = parseFloat(confSlider.value).toFixed(2);
+//     }
+//     if (iouSlider) {
+//         iouSlider.oninput = () => box.querySelector(".iou-val").textContent = parseFloat(iouSlider.value).toFixed(2);
+//     }
+
+//     box.querySelector(".start").onclick = async () => {
+//         const cm = await (await fetch("/api/camera-models")).json();
+//         const models = cm[camStr] || [];
+//         if (!models.length) return alert("No models assigned");
+        
+//         const conf = confSlider ? parseFloat(confSlider.value) : 0.25;
+//         const iou = iouSlider ? parseFloat(iouSlider.value) : 0.45;
+        
+//         const location = meta.location || meta.label || "Camera " + (i+1);
+        
+//         box.classList.add("detecting");
+//         updateBadge(true);
+        
+//         await fetch("/api/start", { 
+//             method: "POST", 
+//             headers: { "Content-Type": "application/json" }, 
+//             body: JSON.stringify({ camera: i, models, rtsp: meta.rtsp, conf, iou, location }) 
+//         });
+//         waitAndSwitch(video, meta, i);
+//     };
+
+//     box.querySelector(".stop").onclick = async () => {
+//         box.classList.remove("detecting");
+//         updateBadge(false);
+//         await fetch("/api/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ camera: i }) });
+//         // Wait for server to: (1) kill detector process, (2) clean stale detected segments,
+//         // (3) start fresh raw FFmpeg and write initial HLS segments.
+//         // Without this delay the player switches to raw before fresh segments exist → black screen.
+//         await new Promise(res => setTimeout(res, 1500));
+//         playHLS(video, meta.hls_raw, i);
+//     };
+// }
+
+// async function init() {
+//     const [streams, status, cameraModels] = await Promise.all([
+//         fetch("/api/streams").then(r => r.json()),
+//         fetch("/api/status").then(r => r.json()),
+//         fetch("/api/camera-models").then(r => r.json())
+//     ]);
+
+//     const streamsById = new Map(streams.map(stream => [String(stream.id), stream]));
+//     document.querySelectorAll(".box").forEach((box) => {
+//         const camId = box.dataset.cameraId;
+//         const meta = streamsById.get(String(camId));
+//         if (meta) renderUI(box, Number(camId), meta, status, cameraModels);
+//         else box.style.display = "none";
+//     });
+// }
+
+// window.RtspDetection = { init };
+// window.addEventListener("load", init);
+// window.addEventListener("rtsp-dashboard-ready", init);

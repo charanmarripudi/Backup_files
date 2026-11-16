@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────
+#  systemd service — RTSP → HLS + HTTP server
+#  Install:
+#    sudo cp rtsp-stream.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable rtsp-stream
+#    sudo systemctl start rtsp-stream
+#
+#  Status:  sudo systemctl status rtsp-stream
+#  Logs:    journalctl -u rtsp-stream -f
+#  Stop:    sudo systemctl stop rtsp-stream
+# ─────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Reliance AI Vision - Industrial Edge Inference Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=algo
+WorkingDirectory=/home/algo/Documents/rtsp_http_cla
+ExecStartPre=/bin/bash -c 'mkdir -p /tmp/hls && ln -sfn /tmp/hls /home/algo/Documents/rtsp_http_cla/hls'
+ExecStart=/bin/bash /home/algo/Documents/rtsp_http_cla/cleanstart.sh
+ExecStop=/bin/bash /home/algo/Documents/rtsp_http_cla/launch.sh stop
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Process cleanup
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

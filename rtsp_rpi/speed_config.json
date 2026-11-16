@@ -1,0 +1,22 @@
+{
+  "speed_limit_kmh": 20.0,
+  "road_distance_meters": 3.0,
+  "line_a_ratio": 0.4,
+  "line_b_ratio": 0.75,
+  "line_a": {
+    "x1_pct": 34.6,
+    "y1_pct": 35.4,
+    "x2_pct": 68.5,
+    "y2_pct": 38.1
+  },
+  "line_b": {
+    "x1_pct": 9.5,
+    "y1_pct": 61.9,
+    "x2_pct": 73.0,
+    "y2_pct": 73.8
+  },
+  "rtsp_url": "/Users/charanmarripudi/Documents/rtsp_rpi/uploads/speed_1794390404_tt_brand_truck.mp4",
+  "allowed_classes": [
+    "truck"
+  ]
+}

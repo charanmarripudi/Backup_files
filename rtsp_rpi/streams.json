@@ -1,0 +1,55 @@
+[
+  {
+    "id": 0,
+    "rtsp": "rtsp://localhost:8554/webcam",
+    "location": "Location 20",
+    "location_id": "loc-1780038850556",
+    "conf": 0.4,
+    "iou": 0.45,
+    "model_configs": {
+      "roi_polygon": [
+        [
+          [
+            0.1682,
+            0.2785
+          ],
+          [
+            0.7281,
+            0.8684
+          ]
+        ]
+      ],
+      "wrong_parking_vehicle_counting.pt": {
+        "enabled_classes": [
+          "wrong_parking"
+        ],
+        "class_configs": {
+          "wrong_parking": {
+            "conf": 0.4,
+            "iou": 0.45
+          }
+        }
+      },
+      "wrong_parking_vehicle_counting": {
+        "enabled_classes": [
+          "wrong_parking"
+        ],
+        "class_configs": {
+          "wrong_parking": {
+            "conf": 0.4,
+            "iou": 0.45
+          }
+        }
+      }
+    },
+    "device_id": "RPI-001",
+    "serial_number": "",
+    "device_ip": "192.168.96.26",
+    "device_type": "",
+    "device_status": "offline",
+    "hls": "/hls/stream0_raw/playlist.m3u8",
+    "hls_live": "/hls/camera/0/playlist.m3u8",
+    "hls_raw": "/hls/stream0_raw/playlist.m3u8",
+    "hls_detected": "/hls/stream0_detected/playlist.m3u8"
+  }
+]
