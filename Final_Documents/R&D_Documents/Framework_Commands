@@ -1,0 +1,19 @@
+For creation Schema or actions in VMS_Schema.model
+  ---> python -m urdhva_base.model -g python -d postgres -f vms_schema.model
+
+For apis calling 
+ ---> python -m urdhva_base
+
+
+
+
+resp = {
+	"data" : [],
+	"count" :  ,
+	"total" :  
+}
+
+
+
+
+

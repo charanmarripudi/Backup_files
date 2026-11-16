@@ -1,0 +1,337 @@
+Step by steps
+
+📁 1. Create Required Directory Structure
+
+	# Create application folder
+	mkdir -p /home/pi5/app1
+
+	# Create backup folder
+	mkdir -p /home/pi5/backup1
+
+	# Create update server folder (local simulation)
+	mkdir -p /home/pi5/update_server1/new_version
+
+
+🧾 2. Create the Configuration File
+
+	Command ----->  nano /home/pi5/update_config1.json
+
+	Format ----->
+		{
+			"app_name": "rpi_app1",
+			"current_version": "1.0.1",
+			"install_path": "/home/pi5/app1",
+			"backup_path": "/home/pi5/backup1",
+			"update_server": "http://localhost/update_server1",
+			"check_interval": 3600,
+			"auto_restart": true,
+			"log_file": "/home/pi5/updater.log",
+			"service_name": "rpi_app.service",
+			"current_versions": {
+				"opencv": "2.5",
+				"python": "3.0",
+				"app_module": "1.0.1"
+			},
+			"install_paths": {
+				"opencv": "/home/pi5/app1/opencv",
+				"python": "/home/pi5/app1/python",
+				"app_module": "/home/pi5/app1"
+			}
+		}
+
+🐍 3. Save the Python Script
+
+   Command ------>  nano /home/pi5/rpi_updater1.py
+   give permissions -------> chmod +x /home/pi5/rpi_updater.py
+
+🌐 4. Serve the Update Folder via HTTP
+
+	Install python3-http.server (usually preinstalled):
+
+		cd /home/pi5
+		python3 -m http.server 80
+
+	This serves update_server1 at:
+	👉 http://localhost/update_server1
+
+	Use ifconfig or hostname -I to get Pi IP and test in browser from other device:
+		---- http://<raspberry_pi_ip>/update_server1/check_response1.json
+
+🧪 5. Test Update Packages
+
+	# Make dummy OpenCV update
+	mkdir -p /home/pi5/opencv_3.0 && echo "OpenCV 3.0" > /home/pi5/opencv_3.0/readme.txt
+	cd /home/pi5/opencv_3.0 && zip -r opencv_3.0.zip .
+	mv opencv_3.0.zip /home/pi5/update_server1/
+
+	# Make dummy Python update
+	mkdir -p /home/pi5/python_3.1 && echo "Python 3.1" > /home/pi5/python_3.1/readme.txt
+	cd /home/pi5/python_3.1 && zip -r python_3.1.zip .
+	mv python_3.1.zip /home/pi5/update_server1/
+
+	# Make dummy AppModule update
+	mkdir -p /home/pi5/app_module_1.0.0 && echo "AppModule 1.0.0" > /home/pi5/app_module_1.0.0/readme.txt
+	cd /home/pi5/app_module_1.0.0  && zip -r app_module_1.0.0.zip .
+	mv app_module_1.0.0.zip /home/pi5/update_server1/
+
+🧾 6. Create check_response1.json
+
+	Command ------>  nano /home/pi5/update_server1/check_response1.json
+
+	Format ------->
+
+			{
+			  "update_available": true,
+			  "updates": [
+			    {
+			      "name": "opencv",
+			      "version": "3.0",
+			      "download_url": "http://localhost/update_server1/opencv_3.0.zip",
+			      "checksum": "REPLACE_THIS",
+			      "filename": "opencv_3.0.zip"
+			    },
+			    {
+			      "name": "python",
+			      "version": "3.1",
+			      "download_url": "http://localhost/update_server1/python_3.1.zip",
+			      "checksum": "REPLACE_THIS",
+			      "filename": "python_3.1.zip"
+			    }
+			  ]
+			}
+
+	🧮 Get checksum values:
+		sha256sum /home/pi5/update_server1/opencv_3.0.zip
+		sha256sum /home/pi5/update_server1/python_3.1.zip
+
+
+
+
+🚀 7. Run the Updater
+
+	✅ To Check for Updates:
+		------> python3 /home/pi5/rpi_updater.py --check
+
+	✅ To Perform Update:
+		------> python3 /home/pi5/rpi_updater.py --update
+
+	✅ To Rollback:
+		------> python3 /home/pi5/rpi_updater.py --update
+
+	✅ To Run as Daemon (Auto Check Every X Seconds):
+		------> python3 /home/pi5/rpi_updater.py --update
+
+
+
+
+Creation a service 
+
+----In your RPiUpdater system, the "service" concept refers to running your application (e.g., rpi_app1) as a background process or daemon that can automatically start on boot, be stopped, restarted, or managed using systemctl (Systemd). This is common in Linux-based systems like Raspberry Pi OS.
+
+✅ Why Use a Service for Your App?
+
+Using a systemd service has several advantages:
+1.Automatic Start on Boot: Ensures your app starts even after reboot.
+2.Controlled Management: Easily start, stop, restart using commands.
+3.Monitoring & Logging: Systemd can restart your app if it crashes.
+4.Integration: Allows the updater to safely stop the app during update and restart afterward.
+
+
+🛠️ How to Create a Systemd Service for Your Application
+
+🔧 Step 1: Create a systemd service file
+	------->  sudo nano /etc/systemd/system/rpi_app1.service
+    ------->  format 
+    [Unit]
+Description=RPi App1 Service
+After=network.target
+
+[Service]
+ExecStart=/home/pi5/app1/start.sh
+WorkingDirectory=/home/pi5/app1
+Restart=always
+User=pi5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+
+
+
+
+
+
+
+
+
+📁 rpi_updater.py
+Type: Python script
+
+Purpose: This is the main update logic that checks for updates, downloads them, creates backups, verifies checksum, installs updates, and manages services.
+
+Run With:
+
+bash
+Copy
+Edit
+python3 rpi_updater.py --check  
+python3 rpi_updater.py --update  
+📁 update_config.json
+Type: Configuration file
+
+Purpose: Holds settings like:
+
+Current app version
+
+App install path
+
+Backup location
+
+Update server URL
+
+Log file path
+
+Optional systemd service name
+
+🔍 Example:
+
+json
+Copy
+Edit
+{
+  "app_name": "rpi_app",
+  "current_version": "1.0.0",
+  "install_path": "/home/pi/app",
+  "backup_path": "/home/pi/backup",
+  "update_server": "http://192.168.0.100:8000",
+  "log_file": "/home/pi/rpi_updater.log"
+}
+📁 app/
+Type: Application folder (simulated)
+
+Purpose: This is your actual software installation.
+
+During update, this folder is:
+
+Backed up
+
+Deleted
+
+Replaced by extracted files from the new update
+
+📄 Contains: version.txt, your app scripts, binaries, etc.
+
+📁 backup/
+Type: Auto-created folder
+
+Purpose: Stores backup copies of the app/ before updates.
+
+Each backup is named like:
+
+Copy
+Edit
+rpi_app_backup_20250730_114500/
+📁 update_server/
+Type: Local HTTP server root
+
+Purpose: This is the folder served via python3 -m http.server to simulate an update server.
+
+Run inside this folder:
+
+bash
+Copy
+Edit
+python3 -m http.server 8000
+Contains:
+
+📄 update.zip
+Type: Zipped update package
+
+Purpose: Contains the new version of your application.
+
+Should include files like:
+
+css
+Copy
+Edit
+version.txt
+main.py
+etc.
+📌 Make sure it doesn't have a nested folder, or updates may not apply properly.
+
+📄 check_response.json
+Type: JSON response file
+
+Purpose: Simulates a server API telling the client whether an update is available.
+
+📄 Contains:
+
+json
+Copy
+Edit
+{
+  "update_available": true,
+  "version": "1.0.1",
+  "download_url": "http://192.168.0.100:8000/update.zip",
+  "filename": "update.zip",
+  "checksum": "abc123..."  // SHA256 of update.zip
+}
+The rpi_updater.py script fetches this file to determine:
+
+Is an update available?
+
+What version?
+
+Where to download it from?
+
+Is it safe (via checksum)?
+
+📝 Optional Files
+📄 version.txt (inside app/ and update.zip)
+Purpose: Just a version indicator.
+
+After a successful update, ~/app/version.txt should show the new version (1.0.1).
+
+📄 post_install.sh (optional)
+Type: Shell script (inside update.zip)
+
+Purpose: Run any post-install steps (e.g., migration, service setup).
+
+If present in the extracted update, it will be executed after file copy.
+
+📁 Log File (Defined in Config)
+Location: /home/pi/rpi_updater.log or /var/log/rpi_updater.log
+
+Purpose: Stores logs of every step like:
+
+Download started/finished
+
+Checksum passed/failed
+
+Backup created
+
+Install success/failure
+
+✅ Summary Table
+File/Folder	Role
+rpi_updater.py	Main update script (check/download/install/rollback)
+update_config.json	Settings like version, paths, update server, logging
+app/	Current installed version of your application
+backup/	Folder where backups of the app are stored
+update_server/	Local HTTP server root folder
+update.zip	The zipped package of the new app version
+check_response.json	Metadata that declares an update is available
+version.txt	Indicates the app version (used for checking updates)
+post_install.sh	(Optional) Script to run after update completes
+
+
+psql -h localhost -U postgres -d vms_db
+\copy alerts FROM '/Users/apple/Documents/Camunda_flow_files/data-1752651374842.csv' WITH (FORMAT csv, HEADER true, NULL 'NULL');
+
+
+vms = db name
+devices = table Name

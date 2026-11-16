@@ -1,0 +1,62 @@
+✅ Step-by-Step Guide to Build GStreamer with V4L2 H.265 Hardware Decoder
+
+🔧 Step 1: Install dependencies
+		sudo apt update
+		sudo apt install -y \
+		git meson ninja-build build-essential \
+		libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+		libdrm-dev libva-dev libv4l-dev libx264-dev libx265-dev \
+		libomxil-bellagio-dev libglib2.0-dev \
+		libjpeg-dev libxv-dev libvpx-dev
+
+
+📁 Step 2: Set up a build folder
+
+		mkdir -p ~/gstreamer-build
+		cd ~/gstreamer-build
+
+📥 Step 3: Clone GStreamer repositories
+
+		git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
+		cd gstreamer
+
+
+⚙️ Step 4: Configure the build (enable V4L2 + H.265 + hardware support)
+
+		meson setup build -Dgpl=enabled -Ddefault_library=static
+
+🔨 Step 5: Compile and install
+
+		ninja -C build
+		sudo ninja -C build install
+		sudo ldconfig
+
+🧪 Step 6: Verify v4l2h265dec is available
+
+		gst-inspect-1.0 v4l2h265dec
+
+
+✅ Step 7: Run GStreamer pipeline with H.265 hardware decoding
+
+		gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! \
+		rtph265depay ! h265parse ! v4l2h265dec ! videoconvert ! autovideosink
+
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! \
+    rtph264depay ! h264parse ! v4l2h264dec ! videoconvert ! autovideosink
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! \
+    rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink
+
+
+
+
+
+
+
+
+
+
+

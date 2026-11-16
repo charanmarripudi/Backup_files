@@ -1,0 +1,559 @@
+import urdhva_base
+import os
+import json
+from tqdm import tqdm
+from multiprocessing.pool import ThreadPool
+from PIL import Image
+import torch
+from transformers import AutoModelForCausalLM, AutoProcessor
+from qwen_vl_utils import process_vision_info
+import os
+import logging
+import base64
+import cv2
+import orchestrator.weights
+from common_utils.inference import inference_with_vllm
+from common_utils.consts import image_extensions, MIN_PIXELS, MAX_PIXELS
+from common_utils.image_utils import get_image_by_fitz_doc, fetch_image, smart_resize
+from common_utils.doc_utils import load_images_from_pdf
+from common_utils.prompts import dict_promptmode_to_prompt
+from common_utils.layout_utils import post_process_output, draw_layout_on_image, pre_process_bboxes
+from common_utils.format_transformer import layoutjson2md
+from face_service import FaceService
+
+Base_Path = os.path.abspath(os.path.join(orchestrator.weights.__path__[0], ".."))
+
+
+def resize_image_max_dim(image, max_dim=600):
+    width, height = image.size
+    if max(width, height) <= max_dim:
+        return image
+    scale = max_dim / max(width, height)
+    new_size = (int(width * scale), int(height * scale))
+    return image.resize(new_size, Image.LANCZOS)
+
+
+class DotsOCRParser:
+    """
+    Parse image or pdf file, save text + extracted pictures as image files.
+    """
+
+    def __init__(
+        self,
+        ip='localhost',
+        port=8000,
+        model_name='model',
+        temperature=0.1,
+        top_p=1.0,
+        max_completion_tokens=16384,
+        num_thread=64,
+        dpi=300,
+        output_dir="./output",
+        reference_image_path=None,
+        min_pixels=None,
+        max_pixels=None,
+        use_hf=False,
+
+    ):
+        self.dpi = dpi
+        self.ip = ip
+        self.port = port
+        self.model_name = model_name
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_completion_tokens = max_completion_tokens
+        self.num_thread = num_thread
+        self.output_dir = output_dir
+        self.min_pixels = min_pixels
+        self.max_pixels = max_pixels
+        self.use_hf = use_hf
+        self.reference_image_path = reference_image_path
+
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        self.face = FaceService(logger)
+        self.bbox, self.embeddings = self.face.extract_face_and_embedding(cv2.imread(reference_image_path))
+        if self.use_hf:
+            self._load_hf_model()
+            print("Using Huggingface model, num_thread set to 1")
+        else:
+            print(f"Using vllm model, num_thread set to {self.num_thread}")
+
+        assert self.min_pixels is None or self.min_pixels >= MIN_PIXELS
+        assert self.max_pixels is None or self.max_pixels <= MAX_PIXELS
+
+    def _load_hf_model(self):
+
+        model_path = os.path.join(Base_Path,"weights/DotsOCR")
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            trust_remote_code=True,
+            local_files_only=True
+        )
+        self.processor = AutoProcessor.from_pretrained(
+            model_path,
+            trust_remote_code=True,
+            use_fast=True,
+            local_files_only=True
+        )
+        self.process_vision_info = process_vision_info
+
+    def _inference_with_hf(self, image, prompt):
+        
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        print(f"Using device: {device}")
+
+        # Fixed message format - ensure content is properly structured
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": str(prompt)},  # Ensure prompt is a string
+                ],
+            }
+        ]
+
+        try:
+            # Process vision info first to validate the message format
+            image_inputs, video_inputs = self.process_vision_info(messages)
+            
+            # Apply chat template with error handling
+            text = self.processor.apply_chat_template(
+                messages, 
+                tokenize=False, 
+                add_generation_prompt=True
+            )
+            
+            inputs = self.processor(
+                text=[text],
+                images=image_inputs,
+                videos=video_inputs,
+                padding=True,
+                return_tensors="pt",
+            )
+            inputs = inputs.to(device)
+            
+            generated_ids = self.model.generate(
+                **inputs, 
+                max_new_tokens=1024,
+                do_sample=False,  # Add deterministic generation
+                pad_token_id=self.processor.tokenizer.eos_token_id  # Handle padding
+            )
+            
+            generated_ids_trimmed = [
+                out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            
+            response = self.processor.batch_decode(
+                generated_ids_trimmed, 
+                skip_special_tokens=True, 
+                clean_up_tokenization_spaces=False
+            )[0]
+            
+            return response
+            
+        except Exception as e:
+            print(f"Error in HF inference: {e}")
+            # Fallback: try simpler message format
+            try:
+                simple_messages = [
+                    {
+                        "role": "user",
+                        "content": str(prompt)  # Simple text-only fallback
+                    }
+                ]
+                text = self.processor.apply_chat_template(
+                    simple_messages, 
+                    tokenize=False, 
+                    add_generation_prompt=True
+                )
+                inputs = self.processor(
+                    text=[text],
+                    images=[image],
+                    padding=True,
+                    return_tensors="pt",
+                )
+                inputs = inputs.to(device)
+                
+                generated_ids = self.model.generate(
+                    **inputs, 
+                    max_new_tokens=1024,
+                    do_sample=False,
+                    pad_token_id=self.processor.tokenizer.eos_token_id
+                )
+                
+                generated_ids_trimmed = [
+                    out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                ]
+                
+                response = self.processor.batch_decode(
+                    generated_ids_trimmed, 
+                    skip_special_tokens=True, 
+                    clean_up_tokenization_spaces=False
+                )[0]
+                
+                return response
+                
+            except Exception as e2:
+                print(f"Fallback also failed: {e2}")
+                raise e  # Re-raise original error
+
+    def _inference_with_vllm(self, image, prompt):
+        return inference_with_vllm(
+            image,
+            prompt,
+            model_name=self.model_name,
+            ip=self.ip,
+            port=self.port,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_completion_tokens=self.max_completion_tokens,
+        )
+
+    def get_prompt(self, prompt_mode, bbox=None, origin_image=None, image=None, min_pixels=None, max_pixels=None):
+        prompt = dict_promptmode_to_prompt[prompt_mode]
+        if prompt_mode == 'prompt_grounding_ocr':
+            assert bbox is not None
+            bboxes = [bbox]
+            bbox = pre_process_bboxes(origin_image, bboxes, input_width=image.width, input_height=image.height, min_pixels=min_pixels, max_pixels=max_pixels)[0]
+            prompt = prompt + str(bbox)
+        return prompt
+
+    def _save_extracted_pictures(self, origin_image, layout_cells, save_dir):
+        import json
+        # If layout_cells is a string (JSON), parse it
+        if isinstance(layout_cells, str):
+            try:
+                layout_cells = json.loads(layout_cells)
+            except Exception as e:
+                print(f"Failed to parse layout_cells JSON string: {e}")
+                return
+
+        pic_count = 0
+        os.makedirs(save_dir, exist_ok=True)
+        for cell in layout_cells:
+            if isinstance(cell, dict) and cell.get("category") == "Picture":
+                bbox = cell.get("bbox")
+                if bbox and len(bbox) == 4:
+                    x1, y1, x2, y2 = [int(coord) for coord in bbox]
+                    cropped_img = origin_image.crop((x1, y1, x2, y2))
+                    pic_path = os.path.join(save_dir, f"extracted_picture_{pic_count}.png")
+                    cropped_img.save(pic_path)
+                    pic_count += 1
+        print(f"Saved {pic_count} extracted pictures to {save_dir}")
+
+    def _parse_single_image(
+        self,
+        origin_image,
+        prompt_mode,
+        save_dir,
+        save_name,
+        source="image",
+        page_idx=0,
+        bbox=None,
+        fitz_preprocess=False,
+    ):
+        min_pixels, max_pixels = self.min_pixels, self.max_pixels
+        if prompt_mode == "prompt_grounding_ocr":
+            min_pixels = min_pixels or MIN_PIXELS
+            max_pixels = max_pixels or MAX_PIXELS
+        if min_pixels is not None:
+            assert min_pixels >= MIN_PIXELS, f"min_pixels should >= {MIN_PIXELS}"
+        if max_pixels is not None:
+            assert max_pixels <= MAX_PIXELS, f"max_pixels should <+ {MAX_PIXELS}"
+
+        if source == 'image' and fitz_preprocess:
+            image = get_image_by_fitz_doc(origin_image, target_dpi=self.dpi)
+            image = fetch_image(image, min_pixels=min_pixels, max_pixels=max_pixels)
+        else:
+            image = fetch_image(origin_image, min_pixels=min_pixels, max_pixels=max_pixels)
+
+        image = resize_image_max_dim(image, max_dim=600)
+
+        input_height, input_width = smart_resize(image.height, image.width)
+        prompt = self.get_prompt(prompt_mode, bbox, origin_image, image, min_pixels=min_pixels, max_pixels=max_pixels)
+
+        if self.use_hf:
+            response = self._inference_with_hf(image, prompt)
+        else:
+            response = self._inference_with_vllm(image, prompt)
+
+        result = {
+            "page_no": page_idx,
+            "input_height": input_height,
+            "input_width": input_width,
+        }
+        if source == 'pdf':
+            save_name = f"{save_name}_page_{page_idx}"
+
+        if prompt_mode in ['prompt_layout_all_en', 'prompt_layout_only_en', 'prompt_grounding_ocr','prompt_ocr']:
+            cells, filtered = post_process_output(
+                response,
+                prompt_mode,
+                origin_image,
+                image,
+                min_pixels=min_pixels,
+                max_pixels=max_pixels,
+            )
+            if filtered and prompt_mode != 'prompt_layout_only_en' and prompt_mode != "prompt_ocr" and prompt_mode !="prompt_layout_all_en":  # model output json failed, use filtered process
+                json_file_path = os.path.join(save_dir, f"{save_name}.json")
+                with open(json_file_path, 'w', encoding="utf-8") as w:
+                    json.dump(response, w, ensure_ascii=False)
+
+                md_file_path = os.path.join(save_dir, f"{save_name}.md")
+                with open(md_file_path, "w", encoding="utf-8") as md_file:
+                    md_file.write(cells)
+
+                image_layout_path = os.path.join(save_dir, f"{save_name}.jpg")
+                origin_image.save(image_layout_path)
+
+                result.update({
+                    'layout_info_path': json_file_path,
+                    'md_content_path': md_file_path,
+                    'layout_image_path': image_layout_path,
+                    'filtered': True,
+                })
+
+                # Save extracted pictures separately
+                pictures_dir = os.path.join(save_dir, "extracted_pictures")
+                self._save_extracted_pictures(origin_image, cells, pictures_dir)
+
+            else:
+                pictures_dir = os.path.join(save_dir, "extracted_pictures")
+                json_file_path = os.path.join(save_dir, f"{save_name}.json")
+                self._save_extracted_pictures(origin_image, cells, pictures_dir)
+
+                face_detected = False
+                matched_face_bbox = None
+                matched_face_embeddings = None
+
+                # Check if extracted_pictures directory exists and has files
+                if os.path.exists(pictures_dir) and os.listdir(pictures_dir):
+                    for file in os.listdir(pictures_dir):
+                        file_path = os.path.join(pictures_dir, file)
+                        if file.lower().endswith(tuple(image_extensions)):
+                            file_img = cv2.imread(file_path)
+                            if file_img is not None:
+                                face_result, face_bbox,face_embeddings = self.face.face_detected_in_image_process(file_img)
+                                if face_result:
+                                    face_detected = True
+                                    matched_face_bbox = face_bbox
+                                    matched_face_embeddings = face_embeddings
+                                    break
+                
+                # Initialize data as None
+                self.data = None
+                if face_detected and matched_face_embeddings is not None:
+                    comparison_result, distance = self.face.compare_faces(matched_face_embeddings, self.embeddings)
+                    if comparison_result and distance is not None:
+                        similarity_score = int((1 - distance) * 100)  # Convert to percentage
+                        
+                        # Read the matched face image
+                        with open(file_path, "rb") as f:
+                            image_file = base64.b64encode(f.read()).decode('utf-8')
+                        
+                        # Read the reference image
+                        with open(self.reference_image_path, "rb") as f:
+                            image_file2 = base64.b64encode(f.read()).decode('utf-8')
+                        
+                        # Process cells data - handle both string and list cases
+                        if isinstance(cells, str):
+                            # If cells is a string, split by newlines
+                            values = [{"name": "Details", "value": line.strip()}
+                                    for line in cells.split("\n") if line.strip()]
+                        elif isinstance(cells, list):
+                            # If cells is a list, process each item
+                            values = []
+                            for cell in cells:
+                                if isinstance(cell, dict):
+                                    # Extract text from dictionary structure
+                                    text_content = cell.get('text', str(cell))
+                                    if text_content and str(text_content).strip():
+                                        values.append({"name": "Details", "value": str(text_content).strip()})
+                                elif cell and str(cell).strip():
+                                    values.append({"name": "Details", "value": str(cell).strip()})
+                        else:
+                            # Fallback for other data types
+                            values = [{"name": "Details", "value": str(cells)}]
+
+                        self.data = {
+                            "documents": [{
+                                "doc_index": 1,
+                                "filename": "file.jpg",
+                                "doc_type": "prompt",
+                                "doc_type_confidence": 1,
+                                "fields": values,
+                                "id_face": {"image_bytes": image_file},
+                                "matches": {
+                                    "photo_index": 1,
+                                    "decision": "MATCH" if comparison_result else "NO_MATCH",
+                                    "similarity_score": similarity_score if similarity_score >= 0 else 0,
+                                }
+                            }],
+                            "uploaded_images": image_file2
+                        }
+                        print("data------=>", self.data)
+
+
+     
+        else:
+            image_layout_path = os.path.join(save_dir, f"{save_name}.jpg")
+            origin_image.save(image_layout_path)
+            md_file_path = os.path.join(save_dir, f"{save_name}.md")
+            with open(md_file_path, "w", encoding="utf-8") as md_file:
+                md_file.write(response)
+            result.update({
+                'layout_image_path': image_layout_path,
+                'md_content_path': md_file_path,
+            })
+
+        return result, self.data
+
+    def parse_image(self, input_path, filename, prompt_mode, save_dir, bbox=None, fitz_preprocess=False):
+        origin_image = fetch_image(input_path)
+        origin_image = resize_image_max_dim(origin_image, max_dim=1024)
+        result, data= self._parse_single_image(origin_image, prompt_mode, save_dir, filename, source="image", bbox=bbox, fitz_preprocess=fitz_preprocess)
+        result['file_path'] = input_path
+        return [result], data
+
+    def parse_pdf(self, input_path, filename, prompt_mode, save_dir):
+        print(f"loading pdf: {input_path}")
+        images_origin = load_images_from_pdf(input_path, dpi=self.dpi)
+        total_pages = len(images_origin)
+        tasks = [
+            {
+                "origin_image": image,
+                "prompt_mode": prompt_mode,
+                "save_dir": save_dir,
+                "save_name": filename,
+                "source": "pdf",
+                "page_idx": i,
+            } for i, image in enumerate(images_origin)
+        ]
+
+        def _execute_task(task_args):
+            return self._parse_single_image(**task_args)
+
+        if self.use_hf:
+            num_thread = 1
+        else:
+            num_thread = min(total_pages, self.num_thread)
+        print(f"Parsing PDF with {total_pages} pages using {num_thread} threads...")
+
+        results = []
+        with ThreadPool(num_thread) as pool:
+            with tqdm(total=total_pages, desc="Processing PDF pages") as pbar:
+                for result in pool.imap_unordered(_execute_task, tasks):
+                    results.append(result)
+                    pbar.update(1)
+
+        results.sort(key=lambda x: x["page_no"])
+        for i in range(len(results)):
+            results[i]['file_path'] = input_path
+        return results
+
+    def parse_file(
+        self,
+        input_path,
+        output_dir="",
+        prompt_mode="prompt_layout_all_en",
+        bbox=None,
+        fitz_preprocess=False
+    ):
+        output_dir = output_dir or self.output_dir
+        output_dir = os.path.abspath(output_dir)
+        filename, file_ext = os.path.splitext(os.path.basename(input_path))
+        save_dir = os.path.join(output_dir, filename)
+        os.makedirs(save_dir, exist_ok=True)
+
+        if file_ext == '.pdf':
+            results = self.parse_pdf(input_path, filename, prompt_mode, save_dir)
+            return results, None
+        elif file_ext in image_extensions:
+            results, data = self.parse_image(input_path, filename, prompt_mode, save_dir, bbox=bbox, fitz_preprocess=fitz_preprocess)
+            return results, data
+        else:
+            raise ValueError(f"file extension {file_ext} not supported, supported extensions are {image_extensions} and pdf")
+
+
+
+def main():
+    input_image_path = "/Users/apple/Downloads/DATA/aadhaar_images/sandeep_aadhaar.png"
+    reference_image_path = "/Users/apple/Downloads/DATA/faces/sandeep(23)(M)/IMG-20250415-WA0019.jpg"
+    # Parameters
+    prompt_mode = "prompt_layout_all_en"  
+    #prompt_mode = "prompt"
+    use_hf = True
+    max_tokens = 4096
+    output_dir = "./output" 
+
+    dots_ocr_parser = DotsOCRParser(
+        use_hf=use_hf,
+        max_completion_tokens=max_tokens,
+        output_dir=output_dir,
+        reference_image_path=reference_image_path
+    )
+
+    print(f"Using input image: {input_image_path}")
+    results, data = dots_ocr_parser.parse_file(
+        input_image_path,
+        prompt_mode=prompt_mode,
+        bbox=None,
+        fitz_preprocess=True,
+    )
+
+    print("Data :", data)
+
+    if data:
+        json_output_path = os.path.join(output_dir, "face_matching_results.json")
+        with open(json_output_path, 'w', encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False, indent=2)
+        print(f"Face matching data saved to : {json_output_path}")
+    
+
+
+if __name__ == "__main__":
+    main()
+
+
+Upload Your Project Folder
+
+    from google.colab import files
+    uploaded = files.upload()   # upload your_project.zip
+
+Then unzip it:
+
+    !unzip your_project.zip -d /content/
+
+install the pakgs
+    !pip install torch huggingface_hub modelscope pdf2image fastapi uvicorn
+    !pip install "transformers=4.51.3"
+    !pip install pymupdf
+
+
+%cd /content/dots.ocr-master/tools
+    !python download_model.py
+
+%cd /content/dots.ocr-master/dots_ocr
+
+
+
+
+docker network connect datalens_default pg14                  in docker
+
+
+
+
+
+git clone https://github.com/datalens-tech/datalens
+cd datalens
+
+ HC=1 docker compose up
+
+
+METADATA_POSTGRES_DSN_LIST=["postgres://vms_user:password@datalens-postgres:5432/vms_db"] HC=1 docker compose up
+
+

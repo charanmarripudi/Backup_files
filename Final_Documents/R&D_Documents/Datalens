@@ -1,0 +1,167 @@
+rPerfect 👍 thanks for clarifying. Since you’re running DataLens in Docker, here’s the key point:
+
+When you put localhost inside DataLens connection settings, that means inside the container, not on your Mac.
+That’s why you got the connection refused error earlier — the container couldn’t see your Mac’s PostgreSQL on localhost:5432.
+
+✅ How to connect PostgreSQL (on your Mac) to DataLens (Docker)
+
+You have two main options:
+
+Option 1: Use host.docker.internal
+
+Docker provides a special hostname that maps to your host machine (your Mac).
+
+In DataLens connection form, set:
+
+Host: host.docker.internal
+Port: 5432
+Database: postgres
+User: apple  (or the role you created)
+Password: (whatever you set)
+
+
+Make sure PostgreSQL is listening on 0.0.0.0 or at least on 127.0.0.1.
+
+Check in /usr/local/var/postgresql@14/postgresql.conf:
+
+listen_addresses = '*'
+
+
+And in pg_hba.conf (same folder), allow connections:
+
+host    all    all    all    md5
+
+
+Then restart Postgres:
+
+pg_ctl -D /usr/local/var/postgresql@14 restart
+
+Option 2: Run Postgres in Docker
+
+Much simpler, you can run both DataLens and Postgres in the same Docker network.
+
+Example:
+
+docker network create datalens-net
+
+docker run -d --name pg14 --network datalens-net \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_USER=apple \
+  -e POSTGRES_DB=postgres \
+  -p 5432:5432 postgres:14
+
+
+Then run DataLens attached to the same network:
+
+docker run -d --name datalens --network datalens-net -p 8080:8080 your-datalens-image
+
+
+In DataLens connection form, set:
+
+Host: pg14
+Port: 5432
+User: apple
+Password: secret
+Database: postgres
+
+
+⚡ Since you already have PostgreSQL running on your Mac via Homebrew, the fastest fix is Option 1 (host.docker.internal).
+
+👉 Do you want me to guide you step-by-step to adjust postgresql.conf and pg_hba.conf for Option 1?
+
+You said:
+use best option 
+my aim is to coonect the db and create the dashboards
+ChatGPT said:
+
+Got it ✅ — since your goal is to connect smoothly and build dashboards, the best and cleanest option is to run PostgreSQL in Docker alongside DataLens (Option 2).
+
+That way:
+
+Both run inside Docker, on the same network → no firewall or host/localhost issues.
+
+Easy to restart/reset if configs break.
+
+Portable (you can move the setup anywhere).
+
+🚀 Step 1: Create a Docker network
+docker network create datalens-net
+
+🚀 Step 2: Run PostgreSQL in Docker
+docker run -d --name pg14 --network datalens-net \
+  -e POSTGRES_USER=apple \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=postgres \
+  -p 5432:5432 postgres:14
+
+
+User: apple
+
+Password: secret
+
+Database: postgres
+
+You can check logs:
+
+docker logs -f pg14
+
+🚀 Step 3: Run DataLens in the same network
+
+(assuming you already have the DataLens Docker image you used before)
+
+docker run -d --name datalens --network datalens-net \
+  -p 8080:8080 your-datalens-image
+
+🚀 Step 4: Connect from DataLens
+
+In your DataLens UI → New Connection → PostgreSQL, use:
+
+Host: pg14
+Port: 5432
+Database: postgres
+User: apple
+Password: secret
+
+192.168.96.101 my ip address
+
+docker exec -it pg14 psql -U apple -d postgres ----------to run in the docker 
+
+
+After this ✅ you’ll have a working DB connection → then you can start creating datasets and dashboards inside DataLens.
+
+👉 Do you want me to also show you how to load a sample dataset into PostgreSQL (so you can test with some real tables for dashboards)?
+
+
+
+🚀 Step 2: Run PostgreSQL in Docker
+docker run -d --name pg14 --network datalens-net \
+  -e POSTGRES_USER=apple \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=postgres \
+  -p 5432:5432 postgres:14
+
+
+User: apple
+
+Password: secret
+
+Database: postgres
+
+
+This ensures inside Docker you now have:
+
+User: apple
+
+Password: secret
+
+Database: postgres
+
+Host: pg14
+
+Port: 5432
+
+Database: c
+
+User: apple
+
+Password: secret

@@ -1,0 +1,73 @@
+{
+  "update_available": true,
+  "version": "1.0.1",
+  "download_url": "http://192.168.96.21:8000/update.zip",
+  "filename": "update.zip",
+  "checksum": "47750b56cd08d54f9f3f9ffe21a9081a76684165256898ded05ca9b55addac02"
+}
+
+
+
+
+
+{
+  "update_available": true,
+  "updates": [
+    {
+      "name": "opencv",
+      "version": "3.0.0",
+      "filename": "opencv_update.zip",
+      "download_url": "https://your-server.com/updates/opencv_update.zip",
+      "checksum": "abc123..."
+    },
+    {
+      "name": "python",
+      "version": "3.1.0",
+      "filename": "python_update.tar.gz",
+      "download_url": "https://your-server.com/updates/python_update.tar.gz",
+      "checksum": "def456..."
+    },
+    {
+      "name": "app_module",
+      "version": "2.0.1",
+      "filename": "app_module.zip",
+      "download_url": "https://your-server.com/updates/app_module.zip",
+      "checksum": "ghi789..."
+    }
+  ]
+}
+
+
+
+{
+  "app_name": "rpi_app",
+  "current_version": "1.0.0",
+  "install_path": "/home/pi5/app",
+  "backup_path": "/home/pi5/backup",
+  "update_server": "http://192.168.96.21:8000",
+  "check_interval": 3600,
+  "auto_restart": true,
+  "log_file": "/var/log/rpi_updater.log",
+  "service_name": "start.service"
+}
+
+
+
+{
+  "app_name": "rpi_app",
+  "current_versions": {
+    "opencv": "2.5.0",
+    "python": "3.0.0",
+    "app_module": "2.0.0"
+  },
+  "install_paths": {
+    "opencv": "/home/pi5/opencv",
+    "python": "/home/pi5/python",
+    "app_module": "/home/pi5/app"
+  },
+  "backup_path": "/home/pi5/backup",
+  "update_server": "https://your-server.com/updates",
+  "check_interval": 3600,
+  "auto_restart": true,
+  "log_file": "/var/log/rpi_updater.log"
+}

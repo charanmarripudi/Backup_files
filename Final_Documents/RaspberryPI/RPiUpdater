@@ -1,0 +1,141 @@
+import asyncio
+import aiohttp
+import aiofiles
+import json
+import logging
+import hashlib
+import zipfile
+import tarfile
+import shutil
+import subprocess
+from pathlib import Path
+from datetime import datetime
+import tempfile
+from typing import Dict, Optional
+
+
+class RPiUpdater:
+    def __init__(self, config_file: str = "update_config1.json"):
+        self.config_file = config_file
+        self.config = {}
+        self.logger = None
+
+    async def initialize(self):
+        await self.load_config()
+        self.setup_logging()
+
+    async def load_config(self):
+        default_config = {
+            "app_name": "rpi_app1",
+            "current_version": "1.0.1",
+            "install_path": "/home/pi5/app1",
+            "backup_path": "/home/pi5/backup1",
+            "update_server": "https://your-server.com/updates",
+            "check_interval": 3600,
+            "auto_restart": True,
+            "log_file": "updater.log"
+        }
+        try:
+            async with aiofiles.open(self.config_file, mode='r') as f:
+                content = await f.read()
+                loaded = json.loads(content)
+                self.config = {**default_config, **loaded}
+        except FileNotFoundError:
+            self.config = default_config
+            await self.save_config()
+
+    async def save_config(self):
+        async with aiofiles.open(self.config_file, mode='w') as f:
+            await f.write(json.dumps(self.config, indent=2))
+
+    def setup_logging(self):
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(self.config.get('log_file', 'updater.log')),
+                logging.StreamHandler()
+            ]
+        )
+        self.logger = logging.getLogger(__name__)
+
+    async def get_file_hash(self, filepath: str) -> str:
+        sha256_hash = hashlib.sha256()
+        async with aiofiles.open(filepath, mode='rb') as f:
+            while True:
+                chunk = await f.read(4096)
+                if not chunk:
+                    break
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+
+    async def check_for_updates(self) -> Optional[list]:
+        try:
+            url = f"{self.config['update_server']}/check_response1.json"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params={"platform": "raspberry_pi"}, timeout=30) as response:
+                    if response.status != 200:
+                        self.logger.error("Failed to check for updates")
+                        return None
+                    data = await response.json()
+
+            if not data.get("update_available"):
+                self.logger.info("No updates available")
+                return None
+
+            return data.get("updates", [])
+        except Exception as e:
+            self.logger.error(f"Update check failed: {e}")
+            return None
+
+    async def download_update(self, update_info: Dict) -> Optional[str]:
+        try:
+            url = update_info['download_url']
+            filename = update_info.get('filename', 'update.zip')
+            temp_dir = tempfile.mkdtemp()
+            download_path = Path(temp_dir) / filename
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        self.logger.error("Failed to download update")
+                        return None
+
+                    async with aiofiles.open(download_path, mode='wb') as f:
+                        async for chunk in resp.content.iter_chunked(8192):
+                            await f.write(chunk)
+
+            if 'checksum' in update_info:
+                file_hash = await self.get_file_hash(str(download_path))
+                if file_hash != update_info['checksum']:
+                    self.logger.error("Checksum mismatch")
+                    return None
+
+            return str(download_path)
+        except Exception as e:
+            self.logger.error(f"Download failed: {e}")
+            return None
+
+    async def perform_update(self):
+        updates = await self.check_for_updates()
+        if not updates:
+            return
+
+        for update_info in updates:
+            archive_path = await self.download_update(update_info)
+            if not archive_path:
+                continue
+
+            # Extraction and install remain synchronous for now
+            # To be implemented later in async
+
+        self.logger.info("Updates complete")
+
+
+async def main():
+    updater = AsyncRPiUpdater()
+    await updater.initialize()
+    await updater.perform_update()
+
+if __name__ == '__main__':
+    asyncio.run(main())

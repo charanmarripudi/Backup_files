@@ -1,0 +1,289 @@
+#cython: language_level=3, boundscheck=False
+import multiprocessing as mp
+from enum import Enum
+import numpy as np
+import cv2
+import gi
+import signal
+import sys
+
+gi.require_version('Gst', '1.0')
+from gi.repository import Gst
+
+Gst.init(None)
+
+# ------------------- ENUM CLASSES -------------------
+class StreamMode(Enum):
+    INIT_STREAM = 1
+    SETUP_STREAM = 1
+    READ_STREAM = 2
+
+
+class StreamCommands(Enum):
+    FRAME = 1
+    ERROR = 2
+    HEARTBEAT = 3
+    RESOLUTION = 4
+    STOP = 5
+
+# ------------------- STREAM CAPTURE PROCESS -------------------
+class StreamCapture(mp.Process):
+    def __init__(self, link, stop, outQueue, framerate):
+        super().__init__()
+        self.streamLink = link
+        self.stop = stop
+        self.outQueue = outQueue
+        self.framerate = framerate
+        self.currentState = StreamMode.INIT_STREAM
+        self.pipeline = None
+        self.image_arr = None
+        self.newImage = False
+        self.num_unexpected_tot = 40
+        self.unexpected_cnt = 0
+
+    def gst_to_opencv(self, sample):
+        buf = sample.get_buffer()
+        caps = sample.get_caps()
+        arr = np.ndarray(
+            (caps.get_structure(0).get_value('height'),
+             caps.get_structure(0).get_value('width'),
+             3),
+            buffer=buf.extract_dup(0, buf.get_size()),
+            dtype=np.uint8)
+        return arr
+
+    def new_buffer(self, sink, _):
+        sample = sink.emit("pull-sample")
+        arr = self.gst_to_opencv(sample)
+        self.image_arr = arr
+        self.newImage = True
+        return Gst.FlowReturn.OK
+
+    def run(self):
+        self.pipeline = Gst.parse_launch(
+            'rtspsrc name=src ! rtph264depay ! avdec_h264 ! videoconvert ! videorate name=rate ! appsink name=sink')
+
+        src = self.pipeline.get_by_name('src')
+        rate = self.pipeline.get_by_name('rate')
+        sink = self.pipeline.get_by_name('sink')
+
+        src.set_property('location', self.streamLink)
+        src.set_property('latency', 0)
+        src.set_property('protocols', 'tcp')
+        src.set_property('drop-on-latency', True)
+
+        rate.set_property('max-rate', self.framerate)
+        rate.set_property('drop-only', True)
+
+        sink.set_property('max-lateness', 500000000)
+        sink.set_property('max-buffers', 5)
+        sink.set_property('drop', True)
+        sink.set_property('emit-signals', True)
+        sink.set_property('caps', Gst.caps_from_string(
+            'video/x-raw, format=(string)BGR'))
+        sink.connect("new-sample", self.new_buffer, sink)
+
+        if not src or not sink or not self.pipeline:
+            print("Error: Could not create all pipeline elements.")
+            self.stop.set()
+            return
+
+        ret = self.pipeline.set_state(Gst.State.PLAYING)
+        if ret == Gst.StateChangeReturn.FAILURE:
+            print("Error: Unable to set pipeline to PLAYING.")
+            self.stop.set()
+            return
+
+        bus = self.pipeline.get_bus()
+
+        while not self.stop.is_set():
+            message = bus.timed_pop_filtered(10000, Gst.MessageType.ANY)
+
+            if self.image_arr is not None and self.newImage:
+                if not self.outQueue.full():
+                    self.outQueue.put((StreamCommands.FRAME, self.image_arr), block=False)
+                self.image_arr = None
+                self.newImage = False
+                self.unexpected_cnt = 0
+
+            if message:
+                if message.type == Gst.MessageType.ERROR:
+                    err, debug = message.parse_error()
+                    print("GStreamer Error from %s: %s" % (message.src.get_name(), err))
+                    print("Debug Info: %s" % debug)
+                    break
+                elif message.type == Gst.MessageType.EOS:
+                    print("End of stream.")
+                    break
+                elif message.type == Gst.MessageType.STATE_CHANGED:
+                    if isinstance(message.src, Gst.Pipeline):
+                        old, new, pending = message.parse_state_changed()
+                        print("Pipeline state changed from %s to %s." % (old.value_nick, new.value_nick))
+                else:
+                    self.unexpected_cnt += 1
+                    if self.unexpected_cnt >= self.num_unexpected_tot:
+                        break
+
+        print("Terminating pipeline.")
+        self.stop.set()
+        self.pipeline.set_state(Gst.State.NULL)
+
+# ------------------- MAIN FUNCTION -------------------
+def main():
+    rtsp_url = 'rtsp://admin:Algo12345678@192.168.96.55:554/ch0_0.264'  # Replace this
+    stop_event = mp.Event()
+    frame_queue = mp.Queue(maxsize=10)
+    framerate = 5  # Target FPS
+
+    stream_proc = StreamCapture(rtsp_url, stop_event, frame_queue, framerate)
+    stream_proc.start()
+
+    def signal_handler(sig, frame):
+        print("Stopping...")
+        stop_event.set()
+        stream_proc.join()
+        cv2.destroyAllWindows()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    while not stop_event.is_set():
+        try:
+            if not frame_queue.empty():
+                command, frame = frame_queue.get()
+                if command == StreamCommands.FRAME:
+                    cv2.imshow("RTSP Stream", frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        stop_event.set()
+                        break
+        except Exception as e:
+            print("Error in main loop:", str(e))
+            stop_event.set()
+            break
+
+    stream_proc.join()
+    cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    mp.set_start_method('spawn')  # Important for multiprocessing on some platforms
+    main()
+
+
+
+gst_pipeline = (
+    "rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! "
+    "rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! "
+    "appsink drop=true max-buffers=1 sync=false"
+)
+
+
+gst-launch-1.0 rpicamsrc ! 'video/x-raw,width=1920,height=1080,framerate=30/1' ! v4l2h264enc extra-controls="controls,video_bitrate=5000000" ! h264parse config-interval=1 ! rtph264pay pt=96 ! udpsink host=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 port=5000
+
+working.----- 
+
+        gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! decodebin ! autovideosink
+
+        xvimagesink
+
+        gst-launch-1.0 rtspsrc location="rtsp://admin:Algo12345678@192.168.96.41:554/stream1" latency=100 ! rtph265depay ! h265parse ! avdec_h265 ! autovideosink
+
+        gst-launch-1.0 rtspsrc location="rtsp://admin:Algo12345678@192.168.96.41:554/stream1" latency=100 ! rtph265depay ! h265parse !  avdec_h265 ! videoconvert ! glimagesink
+
+        gst-launch-1.0 videotestsrc ! videoconvert ! ximagesink. -- to check the display
+
+
+
+
+v4l2h265dec -------------- to hardware decorder 
+avdec_h265  -------------- to software decorder
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! rtph264depay ! h264parse ! avdec_h264 ! autovideosink
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! rtph265depay ! h265parse ! v4l2h265dec ! autovideosink
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! rtph264depay ! h264parse ! v4l2h264dec ! videoconvert ! autovideosink
+
+
+gst-launch-1.0 rtspsrc location=rtsp://your_camera latency=100 ! rtph264depay ! h264parse ! v4l2h264dec ! autovideosink
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 ! rtph264depay ! h264parse ! v4l2h264dec ! videoconvert ! xvimagesink
+
+
+gst-launch-1.0 rpicamsrc ! 'video/x-raw,width=1920,height=1080,framerate=30/1' ! v4l2h264enc extra-controls="controls,video_bitrate=5000000" ! h264parse config-interval=1 ! rtph264pay pt=96 ! udpsink host=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 port=5000
+
+
+"rtsp://admin:Algo12345678@192.168.96.55:554/ch0_0.264"
+rtsp://admin:Algo12345678@192.168.96.41:554/stream1
+rtsp://admin:Algo12345678@192.168.96.65:554/stream1
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.65:554/stream1 latency=100 \
+  ! rtph264depay ! h264parse ! v4l2h264dec ! videoconvert ! glimagesink
+
+
+
+
+
+
+import cv2
+
+rtsp_url = "rtsp://admin:Algo12345678@192.168.96.55:554/ch0_0.264"
+gstreamer_pipeline = (
+    f'rtspsrc location="{rtsp_url}" latency=100 ! '
+    'rtph264depay ! avdec_h264 ! videoconvert ! appsink drop=1'
+)
+
+cap = cv2.VideoCapture(gstreamer_pipeline, cv2.CAP_GSTREAMER)
+if not cap.isOpened():
+    print("Error: Cannot open RTSP stream.")
+    exit()
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to read frame.")
+        break
+    cv2.imshow("RTSP Stream", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
+
+
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.55:554/ch0_0.264 latency=100 ! decodebin ! autovideosink
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! decodebin ! autovideosink
+
+gst-launch-1.0 rtspsrc location=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 latency=100 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! fakesink
+
+
+gst-launch-1.0 rpicamsrc ! 'video/x-raw,width=1920,height=1080,framerate=30/1' ! v4l2h264enc extra-controls="controls,video_bitrate=5000000" ! h264parse config-interval=1 ! rtph264pay pt=96 ! udpsink host=rtsp://admin:Algo12345678@192.168.96.41:554/stream1 port=5000
+
+
+
+    pipeline = Gst.Pipeline.new("rtsp-player")
+    rtspsrc = Gst.ElementFactory.make("rtspsrc", "source")
+    rtspsrc.set_property("location", "rtsp://admin:Algo12345678@192.168.96.55:554/ch0_0.264") # Replace with your URL
+    rtspsrc.set_property("latency", 100) # Optional: Adjust latency
+
+    decodebin = Gst.ElementFactory.make("decodebin", "decoder")
+    autovideosink = Gst.ElementFactory.make("autovideosink", "sink")
+
+    pipeline.add(rtspsrc)
+    pipeline.add(decodebin)
+    pipeline.add(autovideosink)
+
+    # Link elements: rtspsrc to decodebin, and decodebin to autovideosink
+    # decodebin handles linking to the appropriate decoder and sink automatically
+    rtspsrc.link(decodebin)
+    decodebin.connect("pad-added", lambda src, new_pad, sink_element: new_pad.link(sink_element.get_static_pad("sink")), autovideosink)
+
+
+
+
+

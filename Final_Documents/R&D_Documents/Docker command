@@ -1,0 +1,2 @@
+docker tag hello-docker ulsasandeep/hello-docker:latest
+docker push ulsasandeep/hello-docker:latest

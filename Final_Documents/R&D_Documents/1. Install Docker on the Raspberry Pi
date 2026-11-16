@@ -1,0 +1,96 @@
+1. Install Docker on the Raspberry Pi
+
+	1. Update your system:
+		---> sudo apt-get update && sudo apt-get upgrade
+	2. Download the Docker installation script:
+		---> curl -fsSL https://get.docker.com -o get-docker.sh
+	3. Run the installation script:
+	 	---> sudo sh get-docker.sh
+	4. Add your user to the Docker group: This allows you to run Docker commands without sudo.
+		---> sudo usermod -aG docker $USER
+		---> newgrp docker                      --- 
+	5. Verify Docker installation:
+		---> docker run hello-world
+
+2.  Install nvidia-container-toolkit (if applicable)
+	
+	While Raspberry Pi doesn't have an NVIDIA GPU, you may encounter issues if you try to use NVIDIA-specific images or features. However, for some scenarios, having the NVIDIA Container Toolkit might be helpful. According to NVIDIA Docs installing nvidia-container-toolkit is part of the prerequisites for DeepStream Docker containers.
+	---> Refer to the official installation guide to determine if you need to install it based on your specific requirements.
+
+3. Obtain DeepStream Docker Image
+
+	1. NVIDIA NGC: NVIDIA provides DeepStream Docker images on NGC. You'll need an NGC account and API key to pull them.
+	2. Log in to NGC registry:
+		---> docker login nvcr.io
+				Username: $oauthtoken (literally type this)
+				Password: <your NGC API key>.  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
+
+	3. Pull a DeepStream Docker image: Choose an appropriate image, for example:
+		---> docker pull nvcr.io/nvidia/deepstream:7.1-triton-arm-sbsa
+
+4. Configure and Run the DeepStream Container
+
+	1.Create a project folder (optional but recommended):
+		mkdir project
+		cd project
+		mkdir configs data
+	2.Mount the project folder to the container: This allows you to store configuration files, models, and data outside 	the container for persistence.
+		--> docker run --gpus all -it --rm -v <path_to_your_project_folder>:/opt/nvidia/deepstream/deepstream/sources/project -w /opt/nvidia/deepstream/deepstream/sources/project nvcr.io/nvidia/deepstream:5.1-21.02-devel
+
+		--> docker run --gpus all -it --rm -v /home/pi5/project:/opt/nvidia/deepstream/deepstream/sources/project -w /opt/nvidia/deepstream/deepstream/sources/project nvcr.io/nvidia/deepstream:7.1-triton-arm-sbsa
+
+
+				* Replace <path_to_your_project_folder> with the actual path to your project directory.
+
+
+
+/home/pi5/project
+
+
+How to check the docker container id 
+-- pi@raspberrypi:~ $  docker ps
+-- docker ps -a -q.  to check              container id -- 6238c6ee1aec
+
+
+docker exec -it <6238c6ee1aec> bash      
+
+
+docker run -it --rm \
+  -v /home/pi5/project:/opt/nvidia/deepstream/deepstream/sources/project \
+  -w /opt/nvidia/deepstream/deepstream/sources/project \
+  nvcr.io/nvidia/deepstream:7.1-triton-arm-sbsa
+
+
+
+
+  docker run -it --rm \
+    --gpus all \
+    -e DISPLAY=$DISPLAY \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    nvcr.io/nvidia/deepstream:7.1-triton-arm-sbsa \
+    deepstream-app -c source30_1080p_dec_infer-resnet_tiled_display_int8.txt
+
+
+ 
+# Dockerfile
+FROM python:3.9-slim  
+WORKDIR /home/pi5/codes/app        
+COPY . /home/pi5/codes/app           
+CMD ["python", "app.py"] 
+
+docker build -t my-python-app .     to build
+docker run my-python-app            to run 
+
+
+
+
+how to start the docker in raspbery pi 
+1.sudo systemctl start docker
+2.dockerd
+3. sudo systemctl enable docker
+
+4.
+
+
+
+

@@ -1,0 +1,102 @@
+Document Extraction Libraries (DEL): Purpose and Detailed Uses
+The Document Extraction Libraries (DEL) is a suite of Python/Java libraries developed by Infosys. Its primary purpose is to extract information from various types of documents (such as scanned/native PDFs, images) and to build Retrieval Augmented Generation (RAG)-based solutions for semantic search and Question & Answer (Q&A) systems
+
+
+Essentially, DEL aims to streamline document processing workflows, enabling efficient information retrieval by integrating multiple stages of document processing into a seamless pipeline, leveraging advanced AI techniques like Optical Character Recognition (OCR), embeddings, and Large Language Models (LLMs).
+
+
+ 1. Core Information Extraction Capabilities:
+
+• For Semi-structured Documents (e.g., forms): It enables simple and predictable information extraction by detecting regions of interest. It uses computer vision in the form of an OCR engine (e.g., Tesseract, Azure OCR Read) for positional text detection. By taking a "region definition" as input, it applies techniques to detect specific areas within the document to extract attributes like free text, selection fields (checkboxes, radio buttons), and bordered tables. This approach helps eliminate potential errors even if the document's overall layout changes, as long as the defined regions of interest remain consistent
+• For Unstructured Documents: It can extract the raw content, then retrieve relevant text from it using semantic search, and finally use a Large Language Model (LLM) to extract information
+
+
+2. Key Libraries and Their Specific Uses ("Pin to Pin" Functionality):
+
+The DEL suite consists of several modular libraries, each with a specialised function
+• infy_ocr_generator (S#1): Generates OCR files from image files by using a specified OCR provider
+    ◦ Use: Convert a scanned document image into a machine-readable OCR file.
+• infy_ocr_parser (S#2): Parses OCR files to detect regions of interest (bounding boxes) based on search criteria or a region definition
+    ◦ Use: Identify the exact location (e.g., coordinates) of a specific field (like a name field or a checkbox) on a document from its OCR data.
+• infy_field_extractor (S#3): Extracts free text and selection fields (checkboxes and radio buttons) from image files using the regions of interest (bounding boxes) as input
+    ◦ Use: Get the actual text value from a detected field or determine if a checkbox is "true" (checked) or "false" (unchecked).
+• infy_table_extractor (S#4): Extracts rows and columns from an image of a table
+    ◦ Use: Structure data from tables found in documents into a usable format.
+• infy_dpp_content_extractor (S#14): Extracts raw content from documents (PDFs, images, etc.), enabling downstream processing like indexing or analysis
+    ◦ Use: Obtain the complete textual content of a document.
+• infy_dpp_attribute_extractor (S#15): Provides processors to extract attributes from documents using region-based definitions (RD)
+    ◦ Use: Extract predefined data points based on their location on the document.
+• infy_gen_ai_sdk (S#8): Provides APIs for using embeddings, Large Language Models (LLM), and vector databases
+    ◦ Use: Integrate advanced AI models for tasks like semantic understanding and contextual Q&A.
+
+3. Document Processing Pipeline (DEL Ecosystem and DPP):
+DEL is more than just individual libraries; it's an ecosystem designed for comprehensive document processing
+
+• Document Processor Platform (DPP): This is a data pipeline framework that allows for the creation of reusable components and configurable pipelines
+•It brings all the individual libraries together to create a logical workflow for document ingestion, indexing, semantic search, and evaluation
+
+• Document Ingestion:
+    ◦ Metadata Extraction: Extracts specific metadata using LLMs for categorisation and search
+    ◦ Content Extraction: Retrieves raw text content from various document formats
+    ◦ Segmentation & Chunking: Divides documents into logical sections or smaller chunks, useful for processing lengthy documents and improving embedding accuracy [9, 12 (S#11)].
+    ◦ Indexing: Organises and stores content for efficient retrieval
+
+• Indexing to VectorDB:
+    ◦ Vector Indexing: Uses vector embeddings (e.g., OpenAI, Sentence Transformer) for semantic search [7, 10, 12 (S#8)].
+    ◦ Sparse Indexing: Leverages algorithms like BM25 for keyword-based search
+
+• Semantic Search and Q&A:
+    ◦ Performs Vector DB Search and Sparse DB Search.
+    ◦ Offers Hybrid Search by combining vector and sparse results using the Reciprocal Rank Fusion (RRF) algorithm for improved accuracy.
+    ◦ Allows Metadata Filtering of search results
+
+4. Advanced AI Capabilities:
+• Synthetic Q&A Generation: Ability to generate synthetic question-and-answer pairs from document content, supporting various question types (e.g., Subjective, Mathematical, Analytical) [11, 12 (S#16, S#17)]
+• Synthetic Q&A Evaluation: Uses an LLM to evaluate the quality of these synthetically generated Q&A pairs, ensuring contextual accuracy [11, 12 (S#18, S#19)].
+• RAG Evaluation: Evaluates datasets using RAGAS (RAG Assessment) metrics, crucial for assessing the performance of Retrieval-Augmented Generation workflows [12 (S#12), 12 (S#18, S#19)]
+
+5. Deployment and Scalability:
+
+• Apps: Provides pre-built applications like infy_dpp_processor (for indexing pipelines) and infy_dpp_eval_processor (for evaluation pipelines) that can be deployed as Docker images on Kubernetes clusters
+
+• Services: Includes REST API services like infy_model_service (hosting models), infy_db_service (centralised index storage), infy_resource_service (document storage), and infy_search_service (querying documents). This design supports scalable, large-scale document processing using distributed system
+
+
+To begin using DEL, one would typically:
+1. Meet Software Requirements: Ensure Python (>= 3.10.5 and < 3.12), Java (JDK or JRE >= 8), and Apache Maven (>= 3.8) are installed.
+2. Setup and Installation: Follow detailed instructions for prerequisites, dependencies, and environment setup.
+3. Choose Workflow: Select between the App Flow (ideal for production-ready use cases), which uses pre-built apps and services, or the Notebook Flow (ideal for prototyping and learning) using Jupyter Notebooks.
+4. Run First Pipeline: Execute initial indexing or evaluation pipelines based on the chosen workflow.
+5. Learn and Customise: Utilise the DPP to create reusable components and tailor pipelines to specific business needs.
+In summary, DEL provides a robust, modular, and scalable framework for advanced document information extraction and building sophisticated RAG-based search and Q&A systems. It handles everything from OCR and specific field extraction to content chunking, vector indexing, semantic search, and even the generation and evaluation of synthetic Q&A data, making it a comprehensive solution for modern document intelligence challenges.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
