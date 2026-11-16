@@ -1,0 +1,1 @@
+gst-launch-1.0 -e -v srtsrc uri="srt://0.0.0.0:9003?mode=listener" ! queue ! tsdemux ! h265parse ! splitmuxsink name=split split.location="recordings_fixed_changes/delta_chunk_%05d.ts" split.max-size-time=120000000000 split.send-keyframe-requests=true split.muxer=ffmux_mpegts

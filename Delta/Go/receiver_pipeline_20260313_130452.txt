@@ -1,0 +1,1 @@
+gst-launch-1.0 -e -v srtsrc uri="srt://0.0.0.0:9003?mode=listener" ! queue ! tsdemux ! h265parse ! splitmuxsink name=muxer location="recordings_fixed_changes/delta_chunk_%05d.ts" max-size-time=120000000000 send-keyframe-requests=true

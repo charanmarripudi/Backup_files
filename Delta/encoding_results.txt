@@ -1,0 +1,27 @@
+ENCODING RESULTS
+==================================================
+Input: /Users/algofusion/Downloads/mathena_edit1.mp4
+Original: 31.91 MB, 5063 kbps
+
+Preset: Delta
+  File: video_delta_compressed.mp4
+  Size: 9.59 MB
+  Bitrate: 1560 kb/s
+  PSNR: 38.09 dB
+  Compression: 69.9%
+  Encode Time: 9.13 seconds
+
+Preset: Without Delta
+  File: video_no_delta_quality.mp4
+  Size: 12.23 MB
+  Bitrate: 1990 kb/s
+  PSNR: 26.24 dB
+  Compression: 61.7%
+  Encode Time: 6.23 seconds
+
+Preset: Original
+  File: /Users/algofusion/Downloads/mathena_edit1.mp4
+  Size: 31.91 MB
+  Bitrate: 5063 kb/s
+
+Generated: 2026-02-01 15:49:35

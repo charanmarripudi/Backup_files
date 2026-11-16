@@ -1,0 +1,4 @@
+0:00:00.070609750 [35m87466[00m    0x13480a230 [36mINFO   [00m [00m             x265enc gstx265enc.c:1759:x265enc_element_init:[00m x265 build: 209
+0:00:00.070769709 [35m87466[00m    0x13480a230 [36mINFO   [00m [00m             x265enc gstx265enc.c:1763:x265enc_element_init:[00m x265 default bitdepth: 8
+0:00:00.070775834 [35m87466[00m    0x13480a230 [36mINFO   [00m [00m             x265enc gstx265enc.c:1784:x265enc_element_init:[00m x265 10bit api available
+0:00:00.070779542 [35m87466[00m    0x13480a230 [36mINFO   [00m [00m             x265enc gstx265enc.c:1788:x265enc_element_init:[00m x265 12bit api available

@@ -1,0 +1,1260 @@
+//go:build sender
+
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+)
+
+type RTSPConfig struct {
+	rtspURL   string
+	srtURI    string
+	bitrate   int
+	crf       int
+	fps       int
+	latency   int
+	duration  int
+	quality   string
+	statsFile string
+	verbose   bool
+	scale     string
+	preset    string
+	tune      string
+	method    string
+	skipTest  bool
+}
+
+type StreamStats struct {
+	mu                     sync.RWMutex
+	StartTime              time.Time     `json:"start_time"`
+	Duration               time.Duration `json:"duration_seconds"`
+	InputResolution        string        `json:"input_resolution"`
+	InputFPS               float64       `json:"input_fps"`
+	InputCodec             string        `json:"input_codec"`
+	ActualInputBitrateMbps float64       `json:"actual_input_bitrate_mbps"`
+	RawYUVBitrateMbps      float64       `json:"raw_yuv_bitrate_mbps"`
+	InputDataSizeMB        float64       `json:"input_data_size_mb"`
+	OutputResolution       string        `json:"output_resolution"`
+	OutputCodec            string        `json:"output_codec"`
+	TargetBitrateKbps      int           `json:"target_bitrate_kbps"`
+	ActualBitrateKbps      float64       `json:"actual_bitrate_kbps"`
+	OutputDataSizeMB       float64       `json:"output_data_size_mb"`
+	CompressionRatio       float64       `json:"compression_ratio"`
+	TotalFramesSent        int64         `json:"total_frames_sent"`
+	FramesPerSecond        float64       `json:"frames_per_second"`
+	ConnectionStatus       string        `json:"connection_status"`
+	LastError              string        `json:"last_error"`
+	RetryCount             int           `json:"retry_count"`
+	BytesSent              int64         `json:"bytes_sent"`
+	GOPFrames              int           `json:"gop_frames"`
+	BFrames                int           `json:"b_frames"`
+	EncodingPreset         string        `json:"encoding_preset"`
+	EncodingMethod         string        `json:"encoding_method"`
+	PredictionMode         string        `json:"prediction_mode"`
+	Quantizer              int           `json:"quantizer"`
+	SpaceSavedMB           float64       `json:"space_saved_mb"`
+	SpaceSavedPercent      float64       `json:"space_saved_percent"`
+	Verbose                bool          `json:"-"`
+}
+
+type StreamInfo struct {
+	Width       int
+	Height      int
+	FPS         float64
+	Bitrate     int64
+	Codec       string
+	PixelFormat string
+}
+
+func main() {
+	fmt.Println("=== ENHANCED RTSP TO SRT STREAMER WITH DELTA ENCODING ===")
+	fmt.Println("RTSP → FFmpeg → GStreamer → SRT Network")
+
+	var config RTSPConfig
+
+	flag.StringVar(&config.rtspURL, "input", "", "RTSP URL (required)")
+	flag.StringVar(&config.srtURI, "srt", "", "SRT destination URI (required)")
+	flag.IntVar(&config.bitrate, "bitrate", 6000, "Target bitrate in kbps (default: 6000)")
+	flag.IntVar(&config.crf, "crf", 0, "CRF value (0-51, 0 = use quantizer)")
+	flag.IntVar(&config.fps, "fps", 0, "Force output FPS (0 = keep original)")
+	flag.IntVar(&config.latency, "latency", 120, "SRT latency in ms")
+	flag.IntVar(&config.duration, "duration", 0, "Total duration in seconds (0 = continuous)")
+	flag.StringVar(&config.quality, "quality", "high", "Quality: low, medium, high, copy")
+	flag.StringVar(&config.statsFile, "stats", "./stream_stats_enhanced.json", "Statistics output file")
+	flag.BoolVar(&config.verbose, "verbose", true, "Show verbose output")
+	flag.StringVar(&config.scale, "scale", "", "Scale resolution (e.g., 1280x720, empty = keep original)")
+	flag.StringVar(&config.preset, "preset", "", "x264 preset (overrides quality)")
+	flag.StringVar(&config.tune, "tune", "", "x264 tune (overrides quality)")
+	flag.StringVar(&config.method, "method", "ffmpeg_gstreamer", "Encoding method: gstreamer, ffmpeg, ffmpeg_gstreamer")
+	flag.BoolVar(&config.skipTest, "skip-test", false, "Skip RTSP connection test")
+	help := flag.Bool("help", false, "Show help")
+
+	flag.Parse()
+
+	if *help {
+		printHelp()
+		return
+	}
+
+	if config.rtspURL == "" {
+		fmt.Fprintf(os.Stderr, "Error: --input is required\n")
+		printHelp()
+		os.Exit(1)
+	}
+
+	if config.srtURI == "" {
+		fmt.Fprintf(os.Stderr, "Error: --srt is required\n")
+		printHelp()
+		os.Exit(1)
+	}
+
+	srtHost, srtPort := parseSRTURI(config.srtURI)
+	fmt.Printf("SRT Target: %s:%s\n", srtHost, srtPort)
+
+	// Test RTSP connection
+	if !config.skipTest {
+		fmt.Println("\n=== TESTING RTSP CONNECTION ===")
+		if !testRTSPConnection(config.rtspURL) {
+			fmt.Fprintf(os.Stderr, "Error: Cannot connect to RTSP stream\n")
+			os.Exit(1)
+		}
+		fmt.Println("Waiting 3 seconds for camera to release connection...")
+		time.Sleep(3 * time.Second)
+	}
+
+	// Get actual stream information
+	fmt.Println("\n=== ANALYZING INPUT STREAM ===")
+	streamInfo := getDetailedStreamInfo(config.rtspURL)
+
+	if streamInfo.Width == 0 || streamInfo.Height == 0 {
+		fmt.Println("Warning: Could not detect stream parameters, using defaults")
+		streamInfo = StreamInfo{
+			Width:   2304,
+			Height:  1296,
+			FPS:     15,
+			Bitrate: 8000000, // 8 Mbps estimate
+			Codec:   "h264",
+		}
+	}
+
+	fmt.Printf("Detected stream:\n")
+	fmt.Printf("  Resolution: %dx%d\n", streamInfo.Width, streamInfo.Height)
+	fmt.Printf("  FPS:        %.2f\n", streamInfo.FPS)
+	fmt.Printf("  Codec:      %s\n", streamInfo.Codec)
+	if streamInfo.Bitrate > 0 {
+		fmt.Printf("  Bitrate:    %.2f Mbps (actual encoded)\n", float64(streamInfo.Bitrate)/1000000)
+	}
+
+	// Calculate raw YUV bitrate for comparison
+	rawBitrate := calculateRawBitrate(streamInfo.Width, streamInfo.Height, int(streamInfo.FPS))
+	rawMbps := float64(rawBitrate) / 1000000
+	fmt.Printf("  Raw YUV:    %.2f Mbps (uncompressed theoretical)\n", rawMbps)
+
+	// Use detected or estimated bitrate
+	actualInputBitrate := float64(streamInfo.Bitrate)
+	if actualInputBitrate == 0 {
+		// Estimate based on resolution and quality
+		actualInputBitrate = estimateInputBitrate(streamInfo.Width, streamInfo.Height, streamInfo.FPS)
+		fmt.Printf("  Estimated:  %.2f Mbps (no bitrate metadata)\n", actualInputBitrate/1000000)
+	}
+
+	// Override FPS if specified
+	outputFPS := streamInfo.FPS
+	if config.fps > 0 {
+		outputFPS = float64(config.fps)
+	}
+
+	// Calculate output resolution
+	outputWidth, outputHeight := streamInfo.Width, streamInfo.Height
+	if config.scale != "" {
+		parts := strings.Split(config.scale, "x")
+		if len(parts) == 2 {
+			if w, err := strconv.Atoi(parts[0]); err == nil && w > 0 {
+				outputWidth = w
+			}
+			if h, err := strconv.Atoi(parts[1]); err == nil && h > 0 {
+				outputHeight = h
+			}
+		}
+	}
+
+	// Get encoding parameters
+	encodingParams := getEncodingParams(config.quality)
+	if config.preset != "" {
+		encodingParams["preset"] = config.preset
+	}
+	if config.tune != "" {
+		encodingParams["tune"] = config.tune
+	}
+
+	// Calculate expected data sizes
+	inputBytesPerSecond := int64(actualInputBitrate / 8)
+	inputMBPerSecond := float64(inputBytesPerSecond) / (1024 * 1024)
+
+	// Initialize statistics
+	stats := &StreamStats{
+		StartTime:              time.Now(),
+		InputResolution:        fmt.Sprintf("%dx%d", streamInfo.Width, streamInfo.Height),
+		InputFPS:               streamInfo.FPS,
+		InputCodec:             streamInfo.Codec,
+		ActualInputBitrateMbps: actualInputBitrate / 1000000,
+		RawYUVBitrateMbps:      rawMbps,
+		InputDataSizeMB:        inputMBPerSecond,
+		OutputResolution:       fmt.Sprintf("%dx%d", outputWidth, outputHeight),
+		OutputCodec:            "h264",
+		TargetBitrateKbps:      config.bitrate,
+		EncodingPreset:         encodingParams["preset"],
+		EncodingMethod:         config.method,
+		ConnectionStatus:       "starting",
+		GOPFrames:              getGOPFrames(encodingParams["keyint"]),
+		BFrames:                getBFrames(encodingParams["bframes"]),
+		PredictionMode:         "motion-estimation=umh,subme=8",
+		Quantizer:              28,
+		Verbose:                config.verbose,
+	}
+
+	fmt.Println("\n=== ENCODING CONFIGURATION ===")
+	fmt.Printf("RTSP URL:           %s\n", maskPassword(config.rtspURL))
+	fmt.Printf("SRT URI:            %s\n", config.srtURI)
+	fmt.Printf("\nINPUT:\n")
+	fmt.Printf("  Resolution:       %dx%d @ %.1f fps\n", streamInfo.Width, streamInfo.Height, streamInfo.FPS)
+	fmt.Printf("  Codec:            %s\n", streamInfo.Codec)
+	fmt.Printf("  Actual Bitrate:   %.2f Mbps\n", stats.ActualInputBitrateMbps)
+	fmt.Printf("  Data Rate:        %.2f MB/s\n", inputMBPerSecond)
+
+	fmt.Printf("\nOUTPUT:\n")
+	fmt.Printf("  Resolution:       %dx%d @ %.0f fps\n", outputWidth, outputHeight, outputFPS)
+	fmt.Printf("  Codec:            h264\n")
+	fmt.Printf("  Target Bitrate:   %.2f Mbps\n", float64(config.bitrate)/1000)
+	fmt.Printf("  Method:           %s\n", config.method)
+	fmt.Printf("  Preset:           %s\n", encodingParams["preset"])
+	fmt.Printf("  B-frames:         %d\n", stats.BFrames)
+	fmt.Printf("  GOP Size:         %d frames\n", stats.GOPFrames)
+
+	expectedCompression := stats.ActualInputBitrateMbps / (float64(config.bitrate) / 1000)
+	fmt.Printf("\nEXPECTED COMPRESSION:\n")
+	fmt.Printf("  Ratio:            %.2f:1\n", expectedCompression)
+
+	expectedInput30s := inputMBPerSecond * 30
+	expectedOutput30s := (float64(config.bitrate) * 1000 * 30 / 8) / (1024 * 1024)
+	expectedSaved := expectedInput30s - expectedOutput30s
+	expectedSavedPercent := (expectedSaved / expectedInput30s) * 100
+
+	fmt.Printf("  Per 30s chunk:\n")
+	fmt.Printf("    Input:          %.1f MB\n", expectedInput30s)
+	fmt.Printf("    Output:         %.1f MB\n", expectedOutput30s)
+	fmt.Printf("    Saved:          %.1f MB (%.1f%%)\n", expectedSaved, expectedSavedPercent)
+
+	// Start statistics monitor
+	go statsMonitor(stats, config.statsFile)
+
+	// Start streaming
+	fmt.Println("\n=== STARTING STREAMING ===")
+	fmt.Println("Press Ctrl+C to stop")
+	fmt.Println("Statistics will be saved to:", config.statsFile)
+
+	ret := startStreaming(config, streamInfo.Width, streamInfo.Height, outputWidth, outputHeight,
+		int(outputFPS), encodingParams, stats)
+
+	if ret == 0 {
+		fmt.Println("\n✓ Streaming completed successfully")
+		stats.mu.Lock()
+		stats.ConnectionStatus = "completed"
+		stats.Duration = time.Since(stats.StartTime)
+		stats.OutputDataSizeMB = float64(stats.BytesSent) / (1024 * 1024)
+		if stats.OutputDataSizeMB > 0 {
+			actualInputDataMB := stats.InputDataSizeMB * stats.Duration.Seconds()
+			stats.CompressionRatio = actualInputDataMB / stats.OutputDataSizeMB
+			stats.SpaceSavedMB = actualInputDataMB - stats.OutputDataSizeMB
+			stats.SpaceSavedPercent = (stats.SpaceSavedMB / actualInputDataMB) * 100
+		}
+		stats.mu.Unlock()
+	} else {
+		fmt.Printf("\n✗ Streaming failed (code: %d)\n", ret)
+		stats.mu.Lock()
+		stats.ConnectionStatus = "failed"
+		stats.LastError = fmt.Sprintf("Exit code %d", ret)
+		stats.mu.Unlock()
+	}
+
+	saveStatsToFile(stats, config.statsFile)
+	printFinalStats(stats)
+	fmt.Printf("\nFinal statistics saved to: %s\n", config.statsFile)
+
+	os.Exit(ret)
+}
+
+func getDetailedStreamInfo(rtspURL string) StreamInfo {
+	cmd := exec.Command("ffprobe",
+		"-v", "error",
+		"-rtsp_transport", "tcp",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=width,height,r_frame_rate,bit_rate,codec_name,pix_fmt",
+		"-of", "json",
+		rtspURL,
+	)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return StreamInfo{}
+	}
+
+	var result struct {
+		Streams []struct {
+			Width      int    `json:"width"`
+			Height     int    `json:"height"`
+			RFrameRate string `json:"r_frame_rate"`
+			BitRate    string `json:"bit_rate"`
+			CodecName  string `json:"codec_name"`
+			PixFmt     string `json:"pix_fmt"`
+		} `json:"streams"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil || len(result.Streams) == 0 {
+		return StreamInfo{}
+	}
+
+	stream := result.Streams[0]
+	info := StreamInfo{
+		Width:       stream.Width,
+		Height:      stream.Height,
+		Codec:       stream.CodecName,
+		PixelFormat: stream.PixFmt,
+	}
+
+	// Parse FPS
+	if stream.RFrameRate != "" {
+		parts := strings.Split(stream.RFrameRate, "/")
+		if len(parts) == 2 {
+			num, _ := strconv.ParseFloat(parts[0], 64)
+			den, _ := strconv.ParseFloat(parts[1], 64)
+			if den > 0 {
+				info.FPS = num / den
+			}
+		}
+	}
+
+	// Parse bitrate
+	if stream.BitRate != "" {
+		bitrate, _ := strconv.ParseInt(stream.BitRate, 10, 64)
+		info.Bitrate = bitrate
+	}
+
+	return info
+}
+
+func estimateInputBitrate(width, height int, fps float64) float64 {
+	// Estimate based on resolution (typical H.264 compression)
+	pixels := width * height
+
+	if pixels >= 2000000 { // 1080p+
+		return 8000000 // 8 Mbps
+	} else if pixels >= 1000000 { // 720p+
+		return 4000000 // 4 Mbps
+	} else {
+		return 2000000 // 2 Mbps
+	}
+}
+
+func maskPassword(url string) string {
+	parts := strings.Split(url, "@")
+	if len(parts) != 2 {
+		return url
+	}
+	auth := strings.Split(parts[0], "//")[1]
+	if strings.Contains(auth, ":") {
+		userPass := strings.Split(auth, ":")
+		if len(userPass) == 2 {
+			return strings.Replace(url, auth, userPass[0]+":*****", 1)
+		}
+	}
+	return url
+}
+
+func parseSRTURI(uri string) (string, string) {
+	uri = strings.TrimPrefix(uri, "srt://")
+	parts := strings.Split(uri, ":")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return uri, "9000"
+}
+
+func testRTSPConnection(rtspURL string) bool {
+	cmd := exec.Command("timeout", "10", "ffprobe",
+		"-rtsp_transport", "tcp",
+		"-timeout", "5000000",
+		"-i", rtspURL,
+		"-show_streams",
+		"-select_streams", "v",
+		"-loglevel", "error")
+
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("FFprobe test failed: %v\n", err)
+		return false
+	}
+	fmt.Println("✓ RTSP connection successful")
+	return true
+}
+
+func calculateRawBitrate(width, height, fps int) int {
+	bytesPerFrame := width * height * 3 / 2 // YUV420
+	return bytesPerFrame * 8 * fps
+}
+
+func getEncodingParams(quality string) map[string]string {
+	params := map[string]string{}
+	switch quality {
+	case "low":
+		params["preset"] = "ultrafast"
+		params["tune"] = "zerolatency"
+		params["bframes"] = "0"
+		params["keyint"] = "30"
+		params["refs"] = "1"
+		params["quantizer"] = "35"
+		params["me"] = "dia"
+		params["subme"] = "1"
+	case "medium":
+		params["preset"] = "medium"
+		params["tune"] = "zerolatency"
+		params["bframes"] = "3"
+		params["keyint"] = "60"
+		params["refs"] = "3"
+		params["me"] = "hex"
+		params["subme"] = "6"
+		params["quantizer"] = "30"
+	case "high":
+		params["preset"] = "slow"
+		params["tune"] = "film"
+		params["bframes"] = "8"
+		params["keyint"] = "250"
+		params["refs"] = "6"
+		params["me"] = "umh"
+		params["subme"] = "8"
+		params["quantizer"] = "28"
+	default:
+		params["preset"] = "slow"
+		params["tune"] = "film"
+		params["bframes"] = "8"
+		params["keyint"] = "250"
+		params["refs"] = "6"
+		params["me"] = "umh"
+		params["subme"] = "8"
+		params["quantizer"] = "28"
+	}
+	return params
+}
+
+func getGOPFrames(keyint string) int {
+	if frames, err := strconv.Atoi(keyint); err == nil {
+		return frames
+	}
+	return 250
+}
+
+func getBFrames(bframes string) int {
+	if frames, err := strconv.Atoi(bframes); err == nil {
+		return frames
+	}
+	return 8
+}
+
+func getRefs(refs string) int {
+	if r, err := strconv.Atoi(refs); err == nil {
+		return r
+	}
+	return 6
+}
+
+func startStreaming(config RTSPConfig, inWidth, inHeight, outWidth, outHeight, fps int,
+	encodingParams map[string]string, stats *StreamStats) int {
+
+	pipeline := buildFFmpegGStreamerPipeline(config, outWidth, outHeight, fps, encodingParams)
+
+	if config.verbose {
+		fmt.Printf("\n=== PIPELINE ===\n%s\n", pipeline)
+	}
+
+	return executePipelineWithRetry(pipeline, config.duration, stats, outWidth, outHeight, fps, config.bitrate)
+}
+
+func buildFFmpegGStreamerPipeline(config RTSPConfig, outWidth, outHeight, fps int, encodingParams map[string]string) string {
+	var ffmpegFilters []string
+
+	if config.scale != "" {
+		ffmpegFilters = append(ffmpegFilters, fmt.Sprintf("scale=%d:%d", outWidth, outHeight))
+	}
+
+	if config.fps > 0 {
+		ffmpegFilters = append(ffmpegFilters, fmt.Sprintf("fps=%d", fps))
+	}
+
+	filterStr := ""
+	if len(ffmpegFilters) > 0 {
+		filterStr = fmt.Sprintf("-vf \"%s\"", strings.Join(ffmpegFilters, ","))
+	}
+
+	return fmt.Sprintf(
+		"ffmpeg -loglevel warning -stats_period 10 "+
+			"-rtsp_transport tcp -i \"%s\" "+
+			"%s "+
+			"-c:v rawvideo -pix_fmt yuv420p -f rawvideo - "+
+			"| "+
+			"gst-launch-1.0 -e -q "+
+			"fdsrc fd=0 ! "+
+			"rawvideoparse format=I420 width=%d height=%d framerate=%d/1 ! "+
+			"queue max-size-buffers=10 ! "+
+			"videoconvert ! "+
+			"x264enc bitrate=%d speed-preset=%s tune=%s "+
+			"key-int-max=%d bframes=%d ref=%d "+
+			"me=%s subme=%s quantizer=%s "+
+			"threads=4 sliced-threads=true pass=quant ! "+
+			"h264parse config-interval=1 ! "+
+			"mpegtsmux ! "+
+			"srtsink uri=\"%s\" latency=%d wait-for-connection=false sync=false",
+		config.rtspURL,
+		filterStr,
+		outWidth, outHeight, fps,
+		config.bitrate,
+		encodingParams["preset"],
+		encodingParams["tune"],
+		getGOPFrames(encodingParams["keyint"]),
+		getBFrames(encodingParams["bframes"]),
+		getRefs(encodingParams["refs"]),
+		encodingParams["me"],
+		encodingParams["subme"],
+		encodingParams["quantizer"],
+		config.srtURI,
+		config.latency,
+	)
+}
+
+func executePipelineWithRetry(pipeline string, duration int, stats *StreamStats, width, height, fps, targetBitrate int) int {
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			stats.mu.Lock()
+			stats.RetryCount++
+			stats.mu.Unlock()
+			fmt.Printf("\nRetry attempt %d of %d...\n", i+1, maxRetries)
+			time.Sleep(2 * time.Second)
+		}
+
+		ret := executePipeline(pipeline, duration, stats, width, height, fps, targetBitrate)
+		if ret == 0 {
+			return 0
+		}
+
+		if ret == 130 {
+			return 130
+		}
+	}
+	return 1
+}
+
+func executePipeline(pipeline string, duration int, stats *StreamStats, width, height, fps, targetBitrate int) int {
+	if duration > 0 {
+		pipeline = fmt.Sprintf("timeout %d %s", duration, pipeline)
+	}
+
+	cmd := exec.Command("bash", "-c", pipeline)
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Printf("Failed to create stdout pipe: %v\n", err)
+		return 1
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Printf("Failed to create stderr pipe: %v\n", err)
+		return 1
+	}
+
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start: %v\n", err)
+		return 1
+	}
+
+	stats.mu.Lock()
+	stats.ConnectionStatus = "streaming"
+	stats.mu.Unlock()
+
+	go monitorStreamOutput(stdoutPipe, stderrPipe, stats, width, height, fps, targetBitrate)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		stats.mu.Lock()
+		stats.Duration = time.Since(stats.StartTime)
+		if stats.Duration > 0 {
+			stats.FramesPerSecond = float64(stats.TotalFramesSent) / stats.Duration.Seconds()
+			stats.ActualBitrateKbps = (float64(stats.BytesSent) * 8 / stats.Duration.Seconds()) / 1000
+			stats.OutputDataSizeMB = float64(stats.BytesSent) / (1024 * 1024)
+
+			actualInputDataMB := stats.InputDataSizeMB * stats.Duration.Seconds()
+			if stats.OutputDataSizeMB > 0 {
+				stats.CompressionRatio = actualInputDataMB / stats.OutputDataSizeMB
+				stats.SpaceSavedMB = actualInputDataMB - stats.OutputDataSizeMB
+				stats.SpaceSavedPercent = (stats.SpaceSavedMB / actualInputDataMB) * 100
+			}
+		}
+		stats.mu.Unlock()
+
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				return exitErr.ExitCode()
+			}
+			return 1
+		}
+		return 0
+	case <-sigChan:
+		fmt.Println("\n\nReceived interrupt signal, stopping...")
+		cmd.Process.Signal(syscall.SIGTERM)
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			cmd.Process.Signal(syscall.SIGKILL)
+			<-done
+		}
+		return 130
+	}
+}
+
+func monitorStreamOutput(stdout, stderr io.ReadCloser, stats *StreamStats, width, height, fps, targetBitrate int) {
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			processStreamLine(line, stats)
+		}
+	}()
+
+	go func() {
+		buffer := make([]byte, 16384)
+		frameInterval := time.Second / time.Duration(fps)
+		lastFrameTime := time.Now()
+		lastStatsTime := time.Now()
+		lastPrintTime := time.Now()
+
+		for {
+			n, err := stdout.Read(buffer)
+			if err != nil {
+				break
+			}
+
+			if n > 0 {
+				stats.mu.Lock()
+				stats.BytesSent += int64(n)
+
+				now := time.Now()
+				if now.Sub(lastFrameTime) >= frameInterval {
+					stats.TotalFramesSent++
+					lastFrameTime = now
+				}
+
+				if now.Sub(lastStatsTime) >= time.Second {
+					stats.Duration = time.Since(stats.StartTime)
+					if stats.Duration.Seconds() > 0 {
+						stats.FramesPerSecond = float64(stats.TotalFramesSent) / stats.Duration.Seconds()
+						stats.ActualBitrateKbps = (float64(stats.BytesSent) * 8 / stats.Duration.Seconds()) / 1000
+						stats.OutputDataSizeMB = float64(stats.BytesSent) / (1024 * 1024)
+
+						actualInputDataMB := stats.InputDataSizeMB * stats.Duration.Seconds()
+						if stats.OutputDataSizeMB > 0 {
+							stats.CompressionRatio = actualInputDataMB / stats.OutputDataSizeMB
+							stats.SpaceSavedMB = actualInputDataMB - stats.OutputDataSizeMB
+							stats.SpaceSavedPercent = (stats.SpaceSavedMB / actualInputDataMB) * 100
+						}
+					}
+					lastStatsTime = now
+				}
+				stats.mu.Unlock()
+
+				if now.Sub(lastPrintTime) >= 2*time.Second {
+					printStats(stats)
+					lastPrintTime = now
+				}
+			}
+		}
+	}()
+}
+
+func processStreamLine(line string, stats *StreamStats) {
+	lineLower := strings.ToLower(line)
+
+	if strings.Contains(lineLower, "error") ||
+		strings.Contains(lineLower, "failed") {
+
+		stats.mu.Lock()
+		stats.LastError = line
+		stats.mu.Unlock()
+
+		if stats.Verbose {
+			fmt.Printf("\nError: %s\n", line)
+		}
+	} else if strings.Contains(lineLower, "srt") && strings.Contains(lineLower, "connected") {
+		fmt.Println("\n✓ SRT connection established")
+		stats.mu.Lock()
+		stats.ConnectionStatus = "connected"
+		stats.mu.Unlock()
+	}
+}
+
+func printStats(stats *StreamStats) {
+	stats.mu.RLock()
+	defer stats.mu.RUnlock()
+
+	fmt.Printf("\r\033[K")
+	fmt.Printf("⏱ %v | 📊 Frames: %d (%.1f fps) | 📡 %.0f/%.0f kbps | 💾 %.1f MB | 🗜 %.1f:1 | 💰 %.1f MB saved (%.1f%%)",
+		stats.Duration.Round(time.Second),
+		stats.TotalFramesSent,
+		stats.FramesPerSecond,
+		stats.ActualBitrateKbps,
+		float64(stats.TargetBitrateKbps),
+		stats.OutputDataSizeMB,
+		stats.CompressionRatio,
+		stats.SpaceSavedMB,
+		stats.SpaceSavedPercent,
+	)
+}
+
+func printFinalStats(stats *StreamStats) {
+	stats.mu.RLock()
+	defer stats.mu.RUnlock()
+
+	fmt.Println("\n" + strings.Repeat("=", 70))
+	fmt.Println("                   FINAL STREAMING STATISTICS")
+	fmt.Println(strings.Repeat("=", 70))
+
+	fmt.Println("\nINPUT STREAM:")
+	fmt.Printf("  Resolution:       %s @ %.1f fps\n", stats.InputResolution, stats.InputFPS)
+	fmt.Printf("  Codec:            %s\n", stats.InputCodec)
+	fmt.Printf("  Actual Bitrate:   %.2f Mbps (encoded H.264)\n", stats.ActualInputBitrateMbps)
+	fmt.Printf("  Raw YUV Bitrate:  %.2f Mbps (uncompressed)\n", stats.RawYUVBitrateMbps)
+	fmt.Printf("  Duration:         %v\n", stats.Duration.Round(time.Second))
+	actualInputDataMB := stats.InputDataSizeMB * stats.Duration.Seconds()
+	fmt.Printf("  Total Data:       %.2f MB\n", actualInputDataMB)
+
+	fmt.Println("\n📤 OUTPUT STREAM:")
+	fmt.Printf("  Resolution:       %s @ %.1f fps\n", stats.OutputResolution, stats.FramesPerSecond)
+	fmt.Printf("  Codec:            %s\n", stats.OutputCodec)
+	fmt.Printf("  Target Bitrate:   %.2f Mbps\n", float64(stats.TargetBitrateKbps)/1000)
+	fmt.Printf("  Actual Bitrate:   %.2f Mbps\n", stats.ActualBitrateKbps/1000)
+	fmt.Printf("  Total Frames:     %d\n", stats.TotalFramesSent)
+	fmt.Printf("  Total Data:       %.2f MB\n", stats.OutputDataSizeMB)
+
+	fmt.Println("\n🗜 COMPRESSION ANALYSIS:")
+	fmt.Printf("  Method:           %s\n", stats.EncodingMethod)
+	fmt.Printf("  Preset:           %s\n", stats.EncodingPreset)
+	fmt.Printf("  B-frames:         %d\n", stats.BFrames)
+	fmt.Printf("  GOP Size:         %d frames\n", stats.GOPFrames)
+	fmt.Printf("  Compression:      %.2f:1 ratio\n", stats.CompressionRatio)
+	fmt.Printf("  Space Saved:      %.2f MB (%.1f%%)\n", stats.SpaceSavedMB, stats.SpaceSavedPercent)
+
+	fmt.Println("\n📊 ENCODING QUALITY:")
+	fmt.Printf("  Quantizer:        %d\n", stats.Quantizer)
+	fmt.Printf("  Motion Est:       %s\n", stats.PredictionMode)
+
+	fmt.Println("\n🔌 CONNECTION:")
+	fmt.Printf("  Status:           %s\n", stats.ConnectionStatus)
+	if stats.RetryCount > 0 {
+		fmt.Printf("  Retries:          %d\n", stats.RetryCount)
+	}
+
+	fmt.Println(strings.Repeat("=", 70))
+}
+
+func statsMonitor(stats *StreamStats, statsFile string) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		saveStatsToFile(stats, statsFile)
+	}
+}
+
+func saveStatsToFile(stats *StreamStats, filename string) {
+	stats.mu.RLock()
+	defer stats.mu.RUnlock()
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	encoder.Encode(stats)
+}
+
+func printHelp() {
+	fmt.Printf("Usage: %s --input <rtsp_url> --srt <srt_uri> [options]\n\n", os.Args[0])
+	fmt.Println("RTSP → SRT Streamer with H.264 Delta Encoding")
+	fmt.Println("\nRequired:")
+	fmt.Println("  --input URL      RTSP camera URL")
+	fmt.Println("  --srt URI        SRT destination (e.g., srt://127.0.0.1:9000)")
+	fmt.Println("\nOptional:")
+	fmt.Println("  --bitrate N      Target bitrate in kbps (default: 6000)")
+	fmt.Println("  --quality LEVEL  low, medium, high (default: high)")
+	fmt.Println("  --scale WxH      Output resolution (default: keep original)")
+	fmt.Println("  --fps N          Force output FPS (default: keep original)")
+	fmt.Println("  --duration N     Stream for N seconds (default: continuous)")
+	fmt.Println("  --latency N      SRT latency in ms (default: 120)")
+	fmt.Println("  --stats FILE     Statistics output file")
+	fmt.Println("  --verbose        Show detailed output")
+	fmt.Println("  --skip-test      Skip RTSP connection test")
+	fmt.Println("\nExamples:")
+	fmt.Println("  # Stream with high quality encoding:")
+	fmt.Println("  ./sender --input rtsp://admin:pass@192.168.1.100:554/stream \\")
+	fmt.Println("           --srt srt://127.0.0.1:9000 --quality high")
+	fmt.Println("\n  # Downscale to 720p:")
+	fmt.Println("  ./sender --input rtsp://camera:554/stream \\")
+	fmt.Println("           --srt srt://server:9000 --scale 1280x720 --bitrate 4000")
+}
+
+// getting bad ouput video and using ffmpeg
+
+// // delta_sender_enhanced.go - Hybrid: FFmpeg for RTSP + GStreamer for Delta Encoding
+// //go:build sender
+
+// package main
+
+// import (
+// 	"bufio"
+// 	"flag"
+// 	"fmt"
+// 	"os"
+// 	"os/exec"
+// 	"os/signal"
+// 	"strings"
+// 	"syscall"
+// 	"time"
+// )
+
+// type RTSPConfig struct {
+// 	rtspURL   string
+// 	srtURI    string
+// 	outputDir string
+// 	bitrate   int    // kbps
+// 	crf       int    // 0-51 (lower = better)
+// 	fps       int    // Force FPS
+// 	latency   int    // ms
+// 	duration  int    // seconds (0 = continuous)
+// 	chunkTime int    // seconds per chunk (0 = continuous)
+// 	quality   string // "low", "medium", "high"
+// 	testOnly  bool
+// }
+
+// func main() {
+// 	fmt.Println(" RTSP DELTA COMPRESSION STREAMER")
+// 	fmt.Println("RTSP (FFmpeg) → GStreamer Delta Encode (B-frames) → SRT Stream")
+
+// 	var config RTSPConfig
+
+// 	flag.StringVar(&config.rtspURL, "input", "", "RTSP URL (required)")
+// 	flag.StringVar(&config.srtURI, "srt", "", "SRT destination URI")
+// 	flag.StringVar(&config.outputDir, "output-dir", "./rtsp_compressed", "Output directory")
+// 	flag.IntVar(&config.bitrate, "bitrate", 2000, "Target bitrate in kbps")
+// 	flag.IntVar(&config.crf, "crf", 28, "CRF value (0-51, lower=better)")
+// 	flag.IntVar(&config.fps, "fps", 0, "Force FPS (0=auto)")
+// 	flag.IntVar(&config.latency, "latency", 120, "SRT latency in ms")
+// 	flag.IntVar(&config.duration, "duration", 0, "Total duration in seconds (0=continuous)")
+// 	flag.IntVar(&config.chunkTime, "chunk-time", 0, "Chunk duration in seconds (0=no chunking)")
+// 	flag.StringVar(&config.quality, "quality", "high", "Quality: low, medium, high")
+// 	flag.BoolVar(&config.testOnly, "test", false, "Test RTSP connection only")
+// 	help := flag.Bool("help", false, "Show help")
+
+// 	flag.Parse()
+
+// 	if *help {
+// 		printHelp()
+// 		return
+// 	}
+
+// 	if config.rtspURL == "" {
+// 		fmt.Fprintf(os.Stderr, "Error: --input is required\n")
+// 		os.Exit(1)
+// 	}
+
+// 	// Test RTSP first
+// 	fmt.Println("\n=== TESTING RTSP CONNECTION ===")
+// 	if !testRTSP(config.rtspURL) {
+// 		fmt.Println("\n RTSP test may have issues, but continuing...")
+// 	}
+
+// 	if config.testOnly {
+// 		return
+// 	}
+
+// 	if config.srtURI == "" {
+// 		fmt.Fprintf(os.Stderr, "Error: --srt is required\n")
+// 		os.Exit(1)
+// 	}
+
+// 	fmt.Println("\n=== CONFIGURATION ===")
+// 	fmt.Printf("RTSP URL:     %s\n", config.rtspURL)
+// 	fmt.Printf("SRT URI:      %s\n", config.srtURI)
+// 	fmt.Printf("Bitrate:      %d kbps\n", config.bitrate)
+// 	fmt.Printf("CRF:          %d\n", config.crf)
+// 	fmt.Printf("Latency:      %d ms\n", config.latency)
+// 	fmt.Printf("Quality:      %s\n", config.quality)
+// 	if config.duration > 0 {
+// 		fmt.Printf("Total Duration: %d seconds\n", config.duration)
+// 	}
+// 	if config.chunkTime > 0 {
+// 		fmt.Printf("Chunk Time:     %d seconds\n", config.chunkTime)
+// 	}
+
+// 	// Build and run the pipeline
+// 	ret := runRTSPDeltaPipeline(config)
+
+// 	if ret == 0 {
+// 		fmt.Println("\nRTSP Delta Compression Streaming Complete")
+// 	} else {
+// 		fmt.Printf("\n Streaming failed (code: %d)\n", ret)
+// 	}
+
+// 	os.Exit(ret)
+// }
+
+// func printHelp() {
+// 	fmt.Printf("Usage: %s --input <rtsp_url> --srt <srt_uri> [options]\n", os.Args[0])
+// 	fmt.Println("\nExample (30-second chunks):")
+// 	fmt.Println("  ./delta_sender --input rtsp://admin:pass@192.168.1.100/stream \\")
+// 	fmt.Println("               --srt srt://127.0.0.1:9000 --bitrate 2000 --chunk-time 30")
+// 	fmt.Println("\nOptions:")
+// 	fmt.Println("  --input URL     RTSP source URL (required)")
+// 	fmt.Println("  --srt URI       SRT destination URI (required)")
+// 	fmt.Println("  --bitrate N     Target bitrate in kbps (e.g., 2000)")
+// 	fmt.Println("  --crf N         CRF value (0-51, default: 28)")
+// 	fmt.Println("  --quality Q     Quality preset: low, medium, high")
+// 	fmt.Println("  --duration N    Total duration in seconds (0=continuous)")
+// 	fmt.Println("  --chunk-time N  Chunk duration in seconds (0=no chunking)")
+// 	fmt.Println("  --fps N         Force output FPS")
+// 	fmt.Println("  --latency N     SRT latency in ms (default: 120)")
+// 	fmt.Println("  --test          Test RTSP connection only")
+// }
+
+// func testRTSP(rtspURL string) bool {
+// 	fmt.Println("Testing RTSP connection...")
+
+// 	// Test with FFprobe
+// 	cmd := fmt.Sprintf(
+// 		"timeout 5 ffprobe -rtsp_transport tcp -v error \"%s\" 2>&1 | head -10",
+// 		rtspURL,
+// 	)
+
+// 	output, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+// 	outputStr := string(output)
+
+// 	fmt.Println("--- FFprobe Test ---")
+// 	lines := strings.Split(outputStr, "\n")
+// 	for _, line := range lines {
+// 		if line != "" {
+// 			fmt.Printf("  %s\n", line)
+// 		}
+// 	}
+
+// 	if err == nil || strings.Contains(outputStr, "Stream") || strings.Contains(outputStr, "video") {
+// 		fmt.Println(" FFprobe: Connection successful")
+// 		return true
+// 	}
+
+// 	fmt.Println(" FFprobe test inconclusive")
+// 	return false
+// }
+
+// func runRTSPDeltaPipeline(config RTSPConfig) int {
+// 	fmt.Println("\n=== BUILDING DELTA COMPRESSION PIPELINE ===")
+
+// 	// Get encoding parameters based on quality
+// 	encodingParams := getEncodingParams(config.quality, config.bitrate, config.crf)
+
+// 	fmt.Println("Delta Encoding Parameters:")
+// 	fmt.Printf("  B-frames:      %d\n", encodingParams.bframes)
+// 	fmt.Printf("  Keyframe max:  %d frames\n", encodingParams.keyIntMax)
+// 	fmt.Printf("  Speed preset:  %s\n", encodingParams.speedPreset)
+// 	fmt.Printf("  Bitrate:       %d kbps\n", config.bitrate)
+// 	if config.crf > 0 {
+// 		fmt.Printf("  CRF:           %d\n", config.crf)
+// 	}
+
+// 	// Build the pipeline
+// 	pipeline := buildHybridPipeline(config, encodingParams)
+// 	fmt.Printf("\nPipeline:\n%s\n", pipeline)
+
+// 	fmt.Println("\n=== STARTING STREAM ===")
+// 	fmt.Println("RTSP (FFmpeg) → GStreamer Delta Compression → SRT")
+// 	fmt.Println("Press Ctrl+C to stop")
+
+// 	// Handle chunked streaming
+// 	if config.chunkTime > 0 {
+// 		return runChunkedStreaming(pipeline, config.duration, config.chunkTime)
+// 	}
+
+// 	// Continuous streaming
+// 	return executePipeline(pipeline, config.duration)
+// }
+
+// type EncodingParams struct {
+// 	bframes     int
+// 	keyIntMax   int
+// 	speedPreset string
+// 	profile     string
+// 	tune        string
+// }
+
+// func getEncodingParams(quality string, bitrate, crf int) EncodingParams {
+// 	switch quality {
+// 	case "low":
+// 		return EncodingParams{
+// 			bframes:     2,
+// 			keyIntMax:   30,
+// 			speedPreset: "ultrafast",
+// 			profile:     "baseline",
+// 			tune:        "zerolatency",
+// 		}
+// 	case "medium":
+// 		return EncodingParams{
+// 			bframes:     4,
+// 			keyIntMax:   60,
+// 			speedPreset: "medium",
+// 			profile:     "main",
+// 			tune:        "fastdecode",
+// 		}
+// 	case "high":
+// 		fallthrough
+// 	default:
+// 		return EncodingParams{
+// 			bframes:     8,
+// 			keyIntMax:   250,
+// 			speedPreset: "slow",
+// 			profile:     "high",
+// 			tune:        "film",
+// 		}
+// 	}
+// }
+
+// func buildHybridPipeline(config RTSPConfig, params EncodingParams) string {
+// 	fps := config.fps
+// 	if fps <= 0 {
+// 		fps = 15
+// 	}
+
+// 	// FFmpeg part
+// 	ffmpegPart := fmt.Sprintf(
+// 		"ffmpeg -loglevel error -rtsp_transport tcp -i \"%s\" "+
+// 			"-f rawvideo -pix_fmt yuv420p -r %d -",
+// 		config.rtspURL, fps,
+// 	)
+
+// 	// GStreamer part with better SRT settings
+// 	x264Params := fmt.Sprintf(
+// 		"bframes=%d key-int-max=%d speed-preset=%s bitrate=%d",
+// 		params.bframes, params.keyIntMax, params.speedPreset, config.bitrate,
+// 	)
+
+// 	gstreamerPart := fmt.Sprintf(
+// 		"gst-launch-1.0 -e "+
+// 			"fdsrc ! "+
+// 			"videoparse format=i420 width=1280 height=720 framerate=%d/1 ! "+
+// 			"queue ! "+
+// 			"x264enc %s ! "+
+// 			"h264parse ! "+
+// 			"mpegtsmux alignment=7 ! "+
+// 			"srtsink uri=\"%s\" "+
+// 			"latency=%d "+
+// 			"wait-for-connection=true "+
+// 			"sync=true "+
+// 			"max-bitrate=%d "+
+// 			"reconnect=1 "+
+// 			"reconnect-attempts=-1 "+
+// 			"reconnect-delay=1000 "+
+// 			"mode=caller",
+// 		fps, x264Params, config.srtURI, config.latency, config.bitrate*1024,
+// 	)
+
+// 	return ffmpegPart + " 2>/dev/null | " + gstreamerPart
+// }
+
+// // Alternative: Use FFmpeg to decode, GStreamer to encode with raw video passthrough
+// func buildHybridPipeline2(config RTSPConfig, params EncodingParams) string {
+// 	fps := config.fps
+// 	if fps <= 0 {
+// 		fps = 15
+// 	}
+
+// 	// This version uses FFmpeg to decode RTSP to raw video, pipes to GStreamer for encoding
+// 	return fmt.Sprintf(
+// 		"ffmpeg -loglevel error -rtsp_transport tcp -i \"%s\" "+
+// 			"-f rawvideo -pix_fmt yuv420p -r %d - 2>/dev/null | "+
+// 			"gst-launch-1.0 -e "+
+// 			"fdsrc ! "+
+// 			"videoparse format=i420 width=1920 height=1080 framerate=%d/1 ! "+
+// 			"queue ! "+
+// 			"x264enc bframes=%d key-int-max=%d speed-preset=%s bitrate=%d ! "+
+// 			"h264parse ! "+
+// 			"mpegtsmux alignment=7 ! "+
+// 			"srtsink uri=\"%s\" latency=%d wait-for-connection=true sync=true max-bitrate=%d",
+// 		config.rtspURL, fps, fps,
+// 		params.bframes, params.keyIntMax, params.speedPreset, config.bitrate,
+// 		config.srtURI, config.latency, config.bitrate*1024,
+// 	)
+// }
+
+// // Run chunked streaming (restart pipeline every chunkTime seconds)
+// func runChunkedStreaming(pipeline string, totalDuration, chunkTime int) int {
+// 	fmt.Printf("\n=== CHUNKED STREAMING MODE ===\n")
+// 	fmt.Printf("Will stream in chunks of %d seconds\n", chunkTime)
+
+// 	chunkNum := 1
+// 	sigChan := make(chan os.Signal, 1)
+// 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+// 	startTime := time.Now()
+
+// 	for {
+// 		// Check if we've reached total duration
+// 		if totalDuration > 0 {
+// 			elapsed := time.Since(startTime).Seconds()
+// 			if elapsed >= float64(totalDuration) {
+// 				fmt.Printf("\n Completed total duration: %.0f seconds\n", elapsed)
+// 				return 0
+// 			}
+// 		}
+
+// 		// Check for interrupt
+// 		select {
+// 		case <-sigChan:
+// 			fmt.Println("\nInterrupt received, stopping...")
+// 			return 130
+// 		default:
+// 			// Continue streaming
+// 		}
+
+// 		fmt.Printf("\n--- Streaming Chunk %d ---\n", chunkNum)
+
+// 		// Add timeout for this chunk
+// 		chunkPipeline := fmt.Sprintf("timeout %d %s", chunkTime, pipeline)
+
+// 		// Execute this chunk
+// 		ret := executePipeline(chunkPipeline, 0)
+
+// 		if ret != 0 && ret != 124 { // 124 is timeout (expected)
+// 			fmt.Printf(" Chunk %d failed with code %d\n", chunkNum, ret)
+// 			return ret
+// 		}
+
+// 		fmt.Printf(" Chunk %d completed\n", chunkNum)
+// 		chunkNum++
+
+// 		// Small delay between chunks
+// 		time.Sleep(500 * time.Millisecond)
+// 	}
+// }
+
+// func executePipeline(pipeline string, duration int) int {
+// 	// Add timeout if duration specified (except for chunked mode)
+// 	if duration > 0 {
+// 		pipeline = fmt.Sprintf("timeout %d %s", duration, pipeline)
+// 	}
+
+// 	fmt.Printf("\nExecuting pipeline...\n")
+
+// 	cmd := exec.Command("bash", "-c", pipeline)
+
+// 	// Set up stdout/stderr pipes
+// 	stdoutPipe, _ := cmd.StdoutPipe()
+// 	stderrPipe, _ := cmd.StderrPipe()
+
+// 	// Start command
+// 	if err := cmd.Start(); err != nil {
+// 		fmt.Printf("Failed to start pipeline: %v\n", err)
+// 		return 1
+// 	}
+
+// 	// Read output in background
+// 	go func() {
+// 		scanner := bufio.NewScanner(stdoutPipe)
+// 		for scanner.Scan() {
+// 			line := scanner.Text()
+// 			fmt.Printf("Output: %s\n", line)
+// 		}
+// 	}()
+
+// 	go func() {
+// 		scanner := bufio.NewScanner(stderrPipe)
+// 		for scanner.Scan() {
+// 			line := scanner.Text()
+// 			fmt.Printf("Error: %s\n", line)
+// 		}
+// 	}()
+
+// 	// Handle signals
+// 	sigChan := make(chan os.Signal, 1)
+// 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+// 	done := make(chan error, 1)
+// 	go func() {
+// 		done <- cmd.Wait()
+// 	}()
+
+// 	start := time.Now()
+
+// 	select {
+// 	case err := <-done:
+// 		elapsed := time.Since(start).Seconds()
+
+// 		if err != nil {
+// 			if exitErr, ok := err.(*exec.ExitError); ok {
+// 				exitCode := exitErr.ExitCode()
+
+// 				if exitCode == 124 { // timeout (expected for chunks)
+// 					fmt.Printf(" Chunk completed (elapsed: %.2fs)\n", elapsed)
+// 					return 0
+// 				}
+// 				if exitCode == 0 || exitCode == 130 || exitCode == 255 {
+// 					fmt.Printf(" Pipeline completed (elapsed: %.2fs)\n", elapsed)
+// 					return 0
+// 				}
+
+// 				fmt.Printf(" Pipeline failed with code %d (elapsed: %.2fs)\n", exitCode, elapsed)
+// 				return exitCode
+// 			}
+
+// 			fmt.Printf(" Pipeline error: %v (elapsed: %.2fs)\n", err, elapsed)
+// 			return 1
+// 		}
+
+// 		fmt.Printf(" Pipeline completed successfully (elapsed: %.2fs)\n", elapsed)
+// 		return 0
+
+// 	case <-sigChan:
+// 		fmt.Println("\nInterrupt received, stopping pipeline...")
+// 		elapsed := time.Since(start).Seconds()
+// 		cmd.Process.Signal(syscall.SIGTERM)
+// 		<-done
+// 		fmt.Printf("Pipeline stopped after %.2f seconds\n", elapsed)
+// 		return 130
+// 	}
+// }

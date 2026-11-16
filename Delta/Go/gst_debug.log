@@ -1,0 +1,8 @@
+0:00:00.019278041 [31m87222[00m    0x123816480 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3581:gst_splitmux_sink_request_new_pad:<muxer>[00m templ:video, name:(null)
+0:00:00.020957541 [31m87222[00m    0x123816480 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3603:gst_splitmux_sink_request_new_pad:<muxer>[00m searching for pad-template with name 'video_%u'
+0:00:00.020969125 [31m87222[00m    0x123816480 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3665:gst_splitmux_sink_request_new_pad:<muxer>[00m found sink pad-template 'video_%u' on the muxer
+0:00:00.020972541 [31m87222[00m    0x123816480 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3668:gst_splitmux_sink_request_new_pad:<muxer>[00m requesting pad from pad-template
+0:00:00.021062958 [31m87222[00m    0x123816480 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3762:gst_splitmux_sink_request_new_pad:<muxer>[00m splitmuxsink pad <'':video> feeds queue pad <queue_video:sink>
+0:00:00.021234000 [31m87222[00m    0x123816480 [36mINFO   [00m [00m        splitmuxsink gstsplitmuxsink.c:4127:do_async_start:<muxer>[00m Sending async_start message
+0:00:00.021235750 [31m87222[00m    0x123889a10 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3082:handle_mq_input:<queue_video:sink>[00m Overriding latency query to pretend we're not live
+0:00:00.021243916 [31m87222[00m    0x123889a60 [37mDEBUG  [00m [00m        splitmuxsink gstsplitmuxsink.c:3492:handle_q_underrun:<queue_video>[00m Queue reported underrun with 0 keyframes and 0 cmds enqueued

@@ -1,0 +1,2 @@
+0:00:00.194818333 [34m78747[00m    0x13c810bd0 [31;01mERROR  [00m [00m             x265enc gstx265enc.c:782:gst_x265_enc_parse_options:<x265enc0>[00m Bad value for option no-scenecut=0 (Note: a NULL value for a non-boolean triggers this)
+0:00:00.194917083 [34m78747[00m    0x13c810bd0 [31;01mERROR  [00m [00m             x265enc gstx265enc.c:782:gst_x265_enc_parse_options:<x265enc0>[00m Bad value for option no-scenecut=0 (Note: a NULL value for a non-boolean triggers this)

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONVIF PTZ Camera Controller</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">📹</div>
+      <div>
+        <div class="brand-title">ONVIF PTZ Controller</div>
+      </div>
+      <span class="brand-badge">LIVE RTSP / ONVIF</span>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="cameraStatusText">Camera 192.168.96.30:8888</span>
+      </div>
+      <button class="btn-doc" onclick="showApiModal()">⚡ API Docs for UI</button>
+      <a href="/docs" target="_blank" class="btn-doc">📖 Swagger UI</a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    
+    <!-- Left: Video Player Card -->
+    <div class="video-card">
+      <div class="video-header">
+        <span style="font-weight: 600; font-size: 0.9rem;">LIVE PREVIEW</span>
+        <span class="cam-meta">rtsp://admin:@192.168.96.30:554/ch0_0.264</span>
+      </div>
+      <div class="video-wrapper">
+        <video id="cameraVideo" autoplay muted playsinline controls></video>
+        <div class="video-overlay-msg" id="videoOverlay">Connecting to HLS stream...</div>
+      </div>
+      <div class="video-stats">
+        <div>Pan: <strong id="telemetryPan" style="color: var(--accent);">0.00</strong></div>
+        <div>Tilt: <strong id="telemetryTilt" style="color: var(--accent);">0.00</strong></div>
+        <div>Zoom: <strong id="telemetryZoom" style="color: var(--accent);">0.00</strong></div>
+        <div style="margin-left: auto; color: var(--success);">● PTZ Active</div>
+      </div>
+    </div>
+
+    <!-- Right: PTZ Control Sidebar -->
+    <div class="control-sidebar">
+      
+      <!-- PTZ Movement Card -->
+      <div class="control-card">
+        <div class="card-title">
+          <span>Direction Controls</span>
+          <span style="font-size: 0.75rem; color: var(--accent);" id="speedVal">50% Speed</span>
+        </div>
+
+        <!-- Mode Switch: Continuous vs Step -->
+        <div class="mode-switch">
+          <button class="mode-btn active" data-mode="continuous" title="Hold button down to move, release to stop">Continuous (Hold)</button>
+          <button class="mode-btn" data-mode="step" title="Click button once for discrete step nudge">Step (Nudge)</button>
+        </div>
+
+        <!-- 8-Way D-Pad -->
+        <div class="dpad-container">
+          <div class="dpad">
+            <button class="dpad-btn" data-dir="upleft" title="Up-Left">↖</button>
+            <button class="dpad-btn" data-dir="up" title="Up">▲</button>
+            <button class="dpad-btn" data-dir="upright" title="Up-Right">↗</button>
+
+            <button class="dpad-btn" data-dir="left" title="Left">◀</button>
+            <button class="dpad-btn center" id="btnStop" title="Stop Motion">STOP</button>
+            <button class="dpad-btn" data-dir="right" title="Right">▶</button>
+
+            <button class="dpad-btn" data-dir="downleft" title="Down-Left">↙</button>
+            <button class="dpad-btn" data-dir="down" title="Down">▼</button>
+            <button class="dpad-btn" data-dir="downright" title="Down-Right">↘</button>
+          </div>
+        </div>
+
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+          <button class="btn-action" id="btnZoomIn">🔍 Zoom In</button>
+          <button class="btn-action" id="btnZoomOut">🔍 Zoom Out</button>
+        </div>
+
+        <!-- Speed Slider -->
+        <div class="slider-group">
+          <div class="slider-label">
+            <span>Movement Speed</span>
+            <span>0.1x — 1.0x</span>
+          </div>
+          <input type="range" id="speedSlider" min="0.1" max="1.0" step="0.05" value="0.5">
+        </div>
+      </div>
+
+      <!-- Preset Manager Card -->
+      <div class="control-card">
+        <div class="card-title">Saved Presets</div>
+        <div class="preset-list" id="presetList">
+          <div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 10px;">Loading presets...</div>
+        </div>
+        <div class="preset-add-box">
+          <input type="text" id="presetNameInput" class="preset-input" placeholder="Preset name (e.g. Door)">
+          <button class="btn-action" id="btnAddPreset" style="padding: 8px 16px;">Save Position</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- API Integration Modal for UI Engineers -->
+  <div class="modal-overlay" id="apiModal">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeApiModal()">✕</button>
+      <h3 style="margin-bottom: 8px; color: var(--accent);">⚡ REST API Endpoints for Frontend UI</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+        Use these REST API endpoints in React, Vue, Angular, or Vanilla JS to control the camera. Full CORS is enabled.
+      </p>
+
+      <div style="font-size: 0.85rem; font-weight: 600; margin-top: 10px;">1. Continuous Move (On Button Down / Hold)</div>
+      <div class="code-block">// POST /api/ptz/move
+fetch("http://localhost:8085/api/ptz/move", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ direction: "left", speed: 0.5 }) // up, down, left, right, etc.
+});</div>
+
+      <div style="font-size: 0.85rem; font-weight: 600; margin-top: 10px;">2. Stop Movement (On Button Release / Mouseup)</div>
+      <div class="code-block">// POST /api/ptz/stop
+fetch("http://localhost:8085/api/ptz/stop", { method: "POST" });</div>
+
+      <div style="font-size: 0.85rem; font-weight: 600; margin-top: 10px;">3. Step Nudge (On Single Click)</div>
+      <div class="code-block">// POST /api/ptz/step
+fetch("http://localhost:8085/api/ptz/step", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ direction: "up", speed: 0.5, duration: 0.35 })
+});</div>
+
+      <div style="font-size: 0.85rem; font-weight: 600; margin-top: 10px;">4. Zoom In / Out</div>
+      <div class="code-block">// POST /api/ptz/zoom
+fetch("http://localhost:8085/api/ptz/zoom", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ direction: "in", speed: 0.5 }) // "in" or "out"
+});</div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

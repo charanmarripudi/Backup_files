@@ -1,0 +1,121 @@
+# ─────────────────────────────────────────────────────────────────
+# CAMERA STREAMING SYSTEM — CONFIGURATION
+# Both local (sender) and server (receiver) read this same file.
+# ─────────────────────────────────────────────────────────────────
+
+server:
+  host: "127.0.0.1"
+  base_port: 9000
+  http_port: 8080
+  output_dir: "./recordingsss"
+  chunk_time: 120          
+  encoder: "h265"
+  frame_detail: true
+
+rabbitmq:
+  enabled: true
+  host: "localhost"
+  port: 5672
+  user: "guest"
+  password: "guest"
+  exchange: "camera_events"
+
+cameras:
+  - id: "camera1"
+    name: "office"
+    rtsp_url: "rtsp://admin:Algo_1212@192.168.96.231:554/stream1"  
+    port_offset: 1
+    fps: 25
+    bitrate: 900
+    width: 1920
+    height: 1080
+    preset: "ultrafast"
+    tune: "zerolatency"
+    enabled: true
+
+
+
+# cameras:
+#   - id: "camera1"
+#     name: "IP Webcam Test"
+#     rtsp_url: "http://192.168.1.12:8080/videofeed"   # placeholder, not used in sender (hardcoded)
+#     port_offset: 1
+#     fps: 25
+#     bitrate: 900
+#     width: 1920
+#     height: 1080
+#     preset: "ultrafast"
+#     tune: "zerolatency"
+#     keyint: 30
+#     bframes: 2
+#     enabled: true
+
+
+
+
+
+# server:
+#   host: "127.0.0.1"
+#   base_port: 9000
+#   http_port: 8080
+#   output_dir: "./recordingsss"
+#   chunk_time: 120
+#   encoder: "h265"
+#   frame_detail: true
+
+# rabbitmq:
+#   enabled: true
+#   host: "localhost"
+#   port: 5672
+#   user: "guest"
+#   password: "guest"
+#   exchange: "camera_events"
+
+# cameras:
+#   - id: "camera1"
+#     name: "Office cam3"
+#     # rtsp_url: "rtsp://admin:Algo_1212@192.168.96.231:554/stream1"
+#     rtsp_url: "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4"
+#     port_offset: 1
+#     fps: 25
+#     bitrate: 900
+#     width: 1920
+#     height: 1080
+#     preset: "ultrafast"
+#     tune: "zerolatency"
+#     keyint: 30
+#     bframes: 2
+#     enabled: true
+
+
+
+
+
+
+  # - id: "camera2"
+  #   name: "Back Parking"
+  #   rtsp_url: "rtsp://admin:Algo_1212@192.168.96.232:554/stream1"
+  #   port_offset: 2            # SRT port = 9002
+  #   fps: 15
+  #   bitrate: 500
+  #   width: 1280
+  #   height: 720
+  #   preset: "ultrafast"
+  #   tune: "zerolatency"
+  #   keyint: 30
+  #   bframes: 0
+  #   enabled: true
+
+  # - id: "camera3"
+  #   name: "Server Room"
+  #   rtsp_url: "rtsp://admin:pass@192.168.96.233:554/stream1"
+  #   port_offset: 3            # SRT port = 9003
+  #   fps: 10
+  #   bitrate: 300
+  #   width: 1280
+  #   height: 720
+  #   preset: "ultrafast"
+  #   tune: "zerolatency"
+  #   keyint: 15
+  #   bframes: 0
+  #   enabled: false            # disabled — will be skipped

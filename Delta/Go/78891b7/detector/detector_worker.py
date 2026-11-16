@@ -1,0 +1,1008 @@
+import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;5000000"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["TORCH_NUM_THREADS"] = "1"
+
+import cv2, subprocess, time, threading, queue, json
+try:
+    cv2.setNumThreads(1)
+except Exception:
+    pass
+from datetime import datetime
+from ultralytics import YOLO
+from ultralytics.utils.plotting import Annotator, colors
+try:
+    import psycopg2
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+
+# Load .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # If dotenv not installed, just use system env vars
+
+from pathlib import Path
+import sys
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# Optimize PyTorch CPU threading to prevent CPU starvation on Raspberry Pi
+try:
+    import torch
+    torch.set_num_threads(1)
+    if hasattr(torch, "set_num_interop_threads"):
+        torch.set_num_interop_threads(1)
+except Exception:
+    pass
+
+import re
+
+from alert_store import DB_DSN, ensure_alerts_schema, insert_alert_db
+
+YOLO_CACHE = {}
+
+def clean_str(s):
+    res = re.sub(r'[^a-z0-9]', '', str(s).lower())
+    return res.replace("saftey", "safety")
+
+INFERENCE_SEMAPHORE = threading.Semaphore(2)
+
+def get_yolo_model(model_path):
+    if model_path not in YOLO_CACHE:
+        print(f"[CACHE] Loading model weights into memory: {model_path}", flush=True)
+        YOLO_CACHE[model_path] = YOLO(model_path)
+    return YOLO_CACHE[model_path]
+
+def get_alerts_base_url():
+    try:
+        public_url_file = os.path.join(str(BASE_DIR), "hls", "public_url.txt")
+        if os.path.exists(public_url_file):
+            with open(public_url_file) as f:
+                val = f.read().strip()
+                if val and not val.startswith("("):
+                    return val
+    except: pass
+def get_dynamic_class_color(class_name):
+    """
+    Pure dynamic deterministic color generator for ANY class name.
+    Works automatically for all present and future models/classes
+    without hardcoding or modifying code.
+    """
+    norm_name = str(class_name).lower().strip().replace("_", "-")
+    palette = [
+        (0, 140, 255),   # Bright Amber / Orange
+        (255, 190, 40),  # Electric Cyan
+        (30, 45, 255),   # Coral Red
+        (0, 230, 115),   # Emerald Green
+        (180, 20, 255),  # Magenta Pink
+        (0, 215, 255),   # Golden Yellow
+        (255, 105, 180), # Neon Pink
+        (210, 230, 0),   # Turquoise
+        (0, 165, 255),   # Vivid Orange
+        (50, 205, 50),   # Lime Green
+        (238, 130, 238), # Violet
+        (30, 144, 255),  # Deep Sky Blue
+        (255, 215, 0),   # Gold
+        (0, 128, 255),   # Tangerine
+        (255, 69, 0),    # Red Orange
+        (0, 255, 127),   # Spring Green
+        (147, 20, 255),  # Deep Purple
+        (255, 140, 0),   # Dark Orange
+        (0, 255, 255),   # Pure Cyan
+        (255, 20, 147),  # Deep Pink
+    ]
+    return palette[abs(hash(norm_name)) % len(palette)]
+
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+
+class DetectorWorker:
+    @property
+    def model_configs(self):
+        return self._model_configs
+
+    @model_configs.setter
+    def model_configs(self, val):
+        self._model_configs = val or {}
+        new_roi = self._model_configs.get("roi_polygon")
+        if new_roi != getattr(self, "roi_polygon", None):
+            self.roi_polygon = new_roi
+            if hasattr(self, "_box_lock"):
+                with self._box_lock:
+                    self._latest_boxes = []
+        print(f"[WORKER-ROI-UPDATE] Camera {getattr(self, 'cam_id', '?')} model_configs updated, roi_polygon={self.roi_polygon}", flush=True)
+
+    def __init__(self, rtsp_url, output_dir, model_paths, conf=0.20, iou=0.45, location="Camera", model_configs=None):
+        self.roi_polygon = None
+        self.rtsp_url, self.output_dir, self.model_paths, self.conf, self.iou, self.location = rtsp_url, output_dir, model_paths, conf, iou, location
+        self.model_configs = model_configs or {}
+        self.fps, self.width, self.height = 5.0, 1280, 720
+        self._latest_raw_frame = None
+        self._latest_boxes = []
+        self._latest_box_time = 0.0
+        self._tracked_boxes = []
+        self._frame_lock, self._box_lock = threading.Lock(), threading.Lock()
+        self._stop_event = threading.Event()
+        self._frame_queue, self._result_queue = queue.Queue(maxsize=1), queue.Queue(maxsize=1)
+        self._last_frame_time, self._cap_ok = time.time(), True
+        self.alert_timers, self.alert_triggered = {}, set()
+        self.cam_id = os.path.basename(output_dir).replace("stream", "").replace("_detected", "")
+        self.model_paths = model_paths
+        self.models = None
+        self._db_conn = None
+
+    def stop(self):
+        self._stop_event.set()
+
+    def _get_db_conn(self):
+        if not PSYCOPG2_AVAILABLE: return None
+        if self._db_conn is None or self._db_conn.closed:
+            try:
+                self._db_conn = psycopg2.connect(DB_DSN, connect_timeout=5)
+            except: self._db_conn = None
+        return self._db_conn
+
+    def _create_ffmpeg(self):
+        os.makedirs(self.output_dir, exist_ok=True)
+        # Clean stale HLS segments & playlist from previous session so player never loops old streams
+        import glob
+        for f in glob.glob(os.path.join(self.output_dir, "*")):
+            try:
+                if os.path.isfile(f) or os.path.islink(f):
+                    os.remove(f)
+            except Exception:
+                pass
+
+        session_id = int(time.time())
+        cmd = [
+            "ffmpeg", "-hide_banner", "-loglevel", "warning", "-y",
+            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{self.width}x{self.height}", 
+            "-r", str(self.fps), "-i", "-", "-an", "-c:v", "libx264", "-preset", "ultrafast", 
+            "-tune", "zerolatency", "-pix_fmt", "yuv420p", "-threads", "2",
+            "-profile:v", "baseline", "-level:v", "3.1",
+            "-b:v", "400k", "-maxrate", "500k", "-bufsize", "1M",
+            "-g", str(max(1, int(self.fps * 1))), 
+            "-keyint_min", str(max(1, int(self.fps * 1))), "-sc_threshold", "0",
+            "-f", "hls", "-hls_time", "1", "-hls_list_size", "6",
+            "-hls_flags", "delete_segments+independent_segments+discont_start+omit_endlist+temp_file", 
+            "-hls_segment_filename", os.path.join(self.output_dir, f"segment_{session_id}_%d.ts"), 
+            os.path.join(self.output_dir, "playlist.m3u8")
+        ]
+        log = open(os.path.join(self.output_dir, "ffmpeg.log"), "a")
+        print(f"[LOG] Camera {self.cam_id} detector stream started with resolution: {self.width}x{self.height}, FPS: {self.fps}, Bitrate: 400k (max 500k)", flush=True)
+        return subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=log, stdout=subprocess.DEVNULL)
+
+    def _letterbox(self, f):
+        h, w = f.shape[:2]
+        s = min(self.width/w, self.height/h)
+        nw, nh = int(w*s), int(h*s)
+        res = cv2.resize(f, (nw, nh))
+        return cv2.copyMakeBorder(res, (self.height-nh)//2, (self.height-nh+1)//2, (self.width-nw)//2, (self.width-nw+1)//2, cv2.BORDER_CONSTANT, value=[0,0,0])
+
+    def _is_valid_box(self, conf_val, m_conf, bw, bh, box_area, f_w, f_h, f_area):
+        if conf_val < m_conf:
+            return False
+        # Absolute Minimum Size Bounds (Rejects single-pixel noise only)
+        if bw < 3 or bh < 3 or box_area < 10:
+            return False
+        # Maximum Size Bounds (Rejects 80% full-screen hallucinations)
+        if box_area > 0.85 * f_area or bh > 0.95 * f_h or bw > 0.95 * f_w:
+            return False
+        return True
+
+    def _run_all_models(self, f):
+        try:
+            cur_cls, now = set(), time.time()
+            raw_boxes = []
+            f_h, f_w = f.shape[:2]
+            f_area = f_w * f_h
+
+            import re
+            # NOTE: No global class union — each model filters ONLY by its own enabled_classes.
+            # Merging classes across models caused cross-contamination (stream 2 detecting wrong classes).
+            for midx, model in enumerate(self.models):
+                m_path = self.model_paths[midx] if (isinstance(self.model_paths, list) and midx < len(self.model_paths)) else str(self.model_paths)
+                m_name = os.path.basename(m_path)
+                m_clean = m_name.replace(".pt", "")
+                
+                m_conf = self.conf
+                m_iou = self.iou
+                enabled_classes = None
+                m_imgsz = 640
+                if isinstance(self.model_configs, dict):
+                    cfg = self.model_configs.get(m_name) or self.model_configs.get(m_clean) or self.model_configs.get(m_name.lower())
+                    if not cfg:
+                        m_norm_target = m_clean.lower().replace("_", "-").replace(" ", "-")
+                        for k, v in self.model_configs.items():
+                            if str(k).replace(".pt", "").lower().replace("_", "-").replace(" ", "-") == m_norm_target:
+                                cfg = v
+                    if cfg and isinstance(cfg, dict):
+                        m_conf = float(cfg.get("conf", self.conf))
+                        m_iou = float(cfg.get("iou", self.iou))
+                        enabled_classes = cfg.get("enabled_classes")
+                        m_imgsz = int(cfg.get("imgsz", 640))
+
+                if enabled_classes is None and hasattr(self, "streams_metadata") and isinstance(self.streams_metadata, list):
+                    try:
+                        cid = str(self.cam_id)
+                        if cid.isdigit() and int(cid) < len(self.streams_metadata) and isinstance(self.streams_metadata[int(cid)], dict):
+                            saved_mc = self.streams_metadata[int(cid)].get("model_configs") or {}
+                            saved_cfg = saved_mc.get(m_name) or saved_mc.get(m_clean) or {}
+                            if isinstance(saved_cfg, dict) and saved_cfg.get("enabled_classes"):
+                                enabled_classes = saved_cfg.get("enabled_classes")
+                    except Exception:
+                        pass
+
+                ppe_models_set = {"ppe_new.pt", "nik_ppe_best.pt", "hf_ppe_detection.pt", "keremberke_ppe_gear.pt", "hansung_ppe_violations.pt", "ppe_new", "nik_ppe_best", "hf_ppe_detection", "keremberke_ppe_gear", "hansung_ppe_violations"}
+
+                # Dynamically set YOLO predict confidence to the minimum of active class sliders
+                detect_conf = m_conf
+                if enabled_classes is not None and isinstance(enabled_classes, list) and len(enabled_classes) > 0:
+                    min_cls_conf = m_conf
+                    if cfg and isinstance(cfg, dict):
+                        class_configs = cfg.get("class_configs")
+                        if class_configs and isinstance(class_configs, dict):
+                            for cls_name in enabled_classes:
+                                c_cfg = class_configs.get(cls_name)
+                                if not c_cfg:
+                                    # Fallback to normalized lookup
+                                    norm_cls = cls_name.lower().replace("_", "-").replace(" ", "-")
+                                    for k, val in class_configs.items():
+                                        if k.lower().replace("_", "-").replace(" ", "-") == norm_cls:
+                                            c_cfg = val
+                                            break
+                                if c_cfg and isinstance(c_cfg, dict) and "conf" in c_cfg:
+                                    min_cls_conf = min(min_cls_conf, float(c_cfg["conf"]))
+                    detect_conf = min_cls_conf
+
+                detected_this_model = []
+                # Predict at base confidence (0.01) to capture all moving, distant, and close objects
+                with INFERENCE_SEMAPHORE:
+                    results = model.predict(f, conf=0.01, iou=m_iou, imgsz=m_imgsz, verbose=False)
+                for r in results:
+                    if r.boxes:
+                        for b in r.boxes:
+                            cls = r.names[int(b.cls[0])]
+                            conf_val = float(b.conf[0])
+                            detected_this_model.append((cls, conf_val))
+                            
+                            def clean_str(s):
+                                res = re.sub(r'[^a-z0-9]', '', str(s).lower())
+                                return res.replace("saftey", "safety")
+
+                            box_cls_clean = clean_str(cls)
+                            if enabled_classes is not None and isinstance(enabled_classes, list) and len(enabled_classes) > 0:
+                                matched = any(box_cls_clean == clean_str(e) for e in enabled_classes)
+                                if not matched:
+                                    continue
+
+                            box_xyxy = b.xyxy[0].cpu().numpy().tolist()
+                            x1, y1, x2, y2 = box_xyxy
+                            bw = max(0, x2 - x1)
+                            bh = max(0, y2 - y1)
+                            box_area = bw * bh
+
+                            # Load class-specific conf thresholds
+                            cls_conf = m_conf
+                            if cfg and isinstance(cfg, dict):
+                                class_configs = cfg.get("class_configs")
+                                if class_configs and isinstance(class_configs, dict):
+                                    c_cfg = None
+                                    for k, val in class_configs.items():
+                                        if clean_str(k) == box_cls_clean:
+                                            c_cfg = val
+                                            break
+                                    if c_cfg and isinstance(c_cfg, dict) and "conf" in c_cfg:
+                                        cls_conf = float(c_cfg.get("conf", m_conf))
+
+                            # Validate Box using class-specific confidence
+                            if not self._is_valid_box(conf_val, cls_conf, bw, bh, box_area, f_w, f_h, f_area):
+                                continue
+
+                            # Apply ROI rectangle filter if configured
+                            if self.roi_polygon and len(self.roi_polygon) == 2:
+                                try:
+                                    fh, fw = f.shape[:2]
+                                    rx1 = int(min(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                                    ry1 = int(min(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                                    rx2 = int(max(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                                    ry2 = int(max(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                                    cx = int((x1 + x2) / 2)
+                                    cy = int((y1 + y2) / 2)
+                                    inside = (rx1 <= cx <= rx2 and ry1 <= cy <= ry2)
+                                    if not inside:
+                                        continue
+                                except Exception:
+                                    pass
+
+                            label_text = f"{cls} {conf_val:.2f}"
+                            color_val = get_dynamic_class_color(cls)
+                            raw_boxes.append((box_xyxy, label_text, color_val, conf_val, cls))
+                if detected_this_model:
+                    m_name = os.path.basename(self.model_paths[midx])
+                    print(f"[DEBUG] Camera {self.cam_id} {m_name}: raw_detected={len(detected_this_model)}, filter={enabled_classes}, kept={len(raw_boxes)} boxes", flush=True)
+
+            # Cross-Class Non-Maximum Suppression (NMS) - 0.65 threshold to allow side-by-side seated workers
+            boxes_data = []
+            if raw_boxes:
+                raw_boxes.sort(key=lambda x: x[3], reverse=True)
+                kept_items = []
+                
+                for item in raw_boxes:
+                    b1_xyxy, l1_text, c1_color, conf1_val, cls1_name = item
+                    x1_1, y1_1, x2_1, y2_1 = b1_xyxy
+                    area1 = max(0, x2_1 - x1_1) * max(0, y2_1 - y1_1)
+                    
+                    suppress = False
+                    for k_item in kept_items:
+                        b2_xyxy, l2_text, c2_color, conf2_val, cls2_name = k_item
+                        x1_2, y1_2, x2_2, y2_2 = b2_xyxy
+                        area2 = max(0, x2_2 - x1_2) * max(0, y2_2 - y1_2)
+                        
+                        # Compute Intersection over Union (IoU)
+                        ix1 = max(x1_1, x1_2)
+                        iy1 = max(y1_1, y1_2)
+                        ix2 = min(x2_1, x2_2)
+                        iy2 = min(y2_1, y2_2)
+                        
+                        if ix2 > ix1 and iy2 > iy1:
+                            inter = (ix2 - ix1) * (iy2 - iy1)
+                            union = area1 + area2 - inter
+                            iou = inter / max(1.0, union)
+                            
+                            # Same/equivalent class (e.g. duplicate no-helmet boxes): suppress if IoU >= 0.50
+                            # Different violation classes (e.g. No_safety_vest vs NO-Hardhat): allow both to show unless 92%+ duplicate box
+                            is_same_cls = (clean_str(cls1_name) == clean_str(cls2_name))
+                            iou_thresh = 0.50 if is_same_cls else 0.92
+                            if iou >= iou_thresh:
+                                suppress = True
+                                break
+                                
+                    if not suppress:
+                        kept_items.append(item)
+
+            # ── TEMPORAL BOX PERSISTENCE & SMOOTHING ──
+            # Holds boxes steady across consecutive frames even if confidence dips briefly
+            new_tracked = []
+            matched_indices = set()
+
+            for item in kept_items:
+                b1_xyxy, l1_text, c1_color, conf1_val, cls1_name = item
+                x1_1, y1_1, x2_1, y2_1 = b1_xyxy
+                area1 = max(0, x2_1 - x1_1) * max(0, y2_1 - y1_1)
+                
+                best_match_idx = None
+                best_match_iou = 0.0
+
+                for t_idx, t_box in enumerate(getattr(self, '_tracked_boxes', [])):
+                    if t_idx in matched_indices:
+                        continue
+                    if t_box.get('cls') != cls1_name:
+                        continue
+                    
+                    x1_2, y1_2, x2_2, y2_2 = t_box['box']
+                    area2 = max(0, x2_2 - x1_2) * max(0, y2_2 - y1_2)
+                    ix1, iy1 = max(x1_1, x1_2), max(y1_1, y1_2)
+                    ix2, iy2 = min(x2_1, x2_2), min(y2_1, y2_2)
+                    if ix2 > ix1 and iy2 > iy1:
+                        inter = (ix2 - ix1) * (iy2 - iy1)
+                        union = area1 + area2 - inter
+                        iou_val = inter / max(1.0, union)
+                        if iou_val > 0.30 and iou_val > best_match_iou:
+                            best_match_iou = iou_val
+                            best_match_idx = t_idx
+
+                if best_match_idx is not None:
+                    matched_indices.add(best_match_idx)
+                    prev_box = self._tracked_boxes[best_match_idx]['box']
+                    smooth_box = [
+                        0.75 * x1_1 + 0.25 * prev_box[0],
+                        0.75 * y1_1 + 0.25 * prev_box[1],
+                        0.75 * x2_1 + 0.25 * prev_box[2],
+                        0.75 * y2_1 + 0.25 * prev_box[3]
+                    ]
+                    new_tracked.append({
+                        'box': smooth_box,
+                        'label': l1_text,
+                        'color': c1_color,
+                        'cls': cls1_name,
+                        'conf': conf1_val,
+                        'ttl': 5  # Hold box for 5 frames (~1 second) if missing in subsequent frames
+                    })
+                else:
+                    new_tracked.append({
+                        'box': b1_xyxy,
+                        'label': l1_text,
+                        'color': c1_color,
+                        'cls': cls1_name,
+                        'conf': conf1_val,
+                        'ttl': 5
+                    })
+
+            # Carry over active tracked boxes whose ttl > 1 (prevents frame-by-frame dropping)
+            for t_idx, t_box in enumerate(getattr(self, '_tracked_boxes', [])):
+                if t_idx not in matched_indices:
+                    new_ttl = t_box['ttl'] - 1
+                    if new_ttl > 0:
+                        t_copy = dict(t_box)
+                        t_copy['ttl'] = new_ttl
+                        new_tracked.append(t_copy)
+
+            self._tracked_boxes = new_tracked
+
+            boxes_data = []
+            for t_box in self._tracked_boxes:
+                boxes_data.append((t_box['box'], t_box['label'], t_box['color']))
+                cur_cls.add(t_box['cls'])
+
+            # Render alert image snapshot with green ROI and identical color-coded boxes
+            snap_img = f.copy()
+            if self.roi_polygon and len(self.roi_polygon) == 2:
+                try:
+                    fh, fw = snap_img.shape[:2]
+                    rx1 = int(min(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                    ry1 = int(min(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                    rx2 = int(max(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                    ry2 = int(max(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                    cv2.rectangle(snap_img, (rx1, ry1), (rx2, ry2), (0, 255, 0), 2)
+                except:
+                    pass
+
+            for b_xyxy, label_text, c_color in boxes_data:
+                try:
+                    x1, y1, x2, y2 = [int(v) for v in b_xyxy]
+                    cv2.rectangle(snap_img, (x1, y1), (x2, y2), c_color, 2)
+                    t_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)[0]
+                    cv2.rectangle(snap_img, (x1, max(0, y1 - t_size[1] - 6)), (x1 + t_size[0] + 6, max(0, y1)), c_color, -1)
+                    cv2.putText(snap_img, label_text, (x1 + 3, max(t_size[1] + 2, y1 - 3)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+                except:
+                    pass
+            res = snap_img
+
+            # Persistent alert timing: 3.0s initial trigger + 30.0s repeat interval for ongoing violations
+            for c in cur_cls:
+                if c not in self.alert_timers:
+                    self.alert_timers[c] = {'start': now, 'last_seen': now, 'last_alert': 0.0}
+                else:
+                    self.alert_timers[c]['last_seen'] = now
+
+                duration = now - self.alert_timers[c]['start']
+                last_alert_time = self.alert_timers[c].get('last_alert', 0.0)
+
+                # Initial trigger after 3.0s continuous detection, or repeat every 30s for continuous violations
+                if duration >= 3.0:
+                    if last_alert_time == 0.0 or (now - last_alert_time) >= 30.0:
+                        self.alert_timers[c]['last_alert'] = now
+                        self.alert_triggered.add(c)
+                        print(f"[ALERT] Triggering alert: cam={self.cam_id}, class={c}, duration={duration:.1f}s, is_repeat={(last_alert_time > 0)}", flush=True)
+                        self._save_alert(c, res)
+
+            # Cleanup expired classes (absent for > 1.5s)
+            for c in list(self.alert_timers.keys()):
+                if now - self.alert_timers[c]['last_seen'] > 1.5:
+                    del self.alert_timers[c]
+                    if c in self.alert_triggered:
+                        self.alert_triggered.remove(c)
+
+            return boxes_data
+        except Exception as err:
+            print(f"[ERROR] _run_all_models error: {err}", flush=True)
+            return []
+
+    def _save_alert(self, class_name, frame):
+        try:
+            now_dt = datetime.now()
+            ts = now_dt.strftime("%Y%m%d_%H%M%S")
+            filename = f"cam{self.cam_id}_{ts}_{class_name}.jpg"
+            adir = os.path.join(os.path.dirname(self.output_dir), "alerts")
+            os.makedirs(adir, exist_ok=True)
+            img_saved = cv2.imwrite(os.path.join(adir, filename), frame)
+            print(f"[ALERT-IMG] Saved snapshot {filename}, ok={img_saved}", flush=True)
+
+            # Create full image path
+            base_url = get_alerts_base_url()
+            if base_url:
+                image_path = f"{base_url.rstrip('/')}/hls/alerts/{filename}"
+            else:
+                image_path = f"/hls/alerts/{filename}"
+
+            # Direct DB Store using provided logic and custom location
+            conn = self._get_db_conn()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    ensure_alerts_schema(cur)
+                    insert_alert_db(cur, self.cam_id, self.location, f"{class_name} Detected", image_path, now_dt)
+                    conn.commit()
+                    cur.close()
+                    print(f"[ALERT-DB] Alert stored successfully in DB: cam={self.cam_id}, class={class_name}, location={self.location}", flush=True)
+                except Exception as dbe:
+                    print(f"[ALERT-DB-ERR] DB insert error: {dbe}", flush=True)
+            else:
+                print(f"[ALERT-DB-WARN] No DB connection available (PSYCOPG2={PSYCOPG2_AVAILABLE})", flush=True)
+        except Exception as e:
+            print(f"[ALERT-ERR] Failed to save alert: {e}", flush=True)
+
+    def _get_connecting_frame(self):
+        # Create a fallback frame with message
+        import numpy as np
+        frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        cv2.putText(frame, "Connecting to Camera...", 
+                   (int(self.width*0.2), int(self.height*0.5)), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+        return frame
+
+    def _inference_thread(self):
+        print(f"[LOG] Camera {self.cam_id} inference thread started", flush=True)
+        while not self._stop_event.is_set():
+            try:
+                f = self._frame_queue.get(timeout=0.2)
+            except:
+                continue
+            boxes = self._run_all_models(f)
+            with self._box_lock:
+                self._latest_boxes = boxes
+                self._latest_box_time = time.time()
+            time.sleep(0.01)
+
+    def _capture_thread(self, cap):
+        while not self._stop_event.is_set():
+            t_start = time.time()
+            if not cap.grab():
+                time.sleep(0.01)
+                continue
+            
+            # Flush queue: if the grab was instant, keep discarding old frames to catch up to live edge
+            grab_count = 0
+            while (time.time() - t_start) < 0.004 and grab_count < 15:
+                t_start = time.time()
+                if not cap.grab():
+                    break
+                grab_count += 1
+            
+            ret, f = cap.retrieve()
+            if not ret or f is None:
+                time.sleep(0.01)
+                continue
+                
+            with self._frame_lock:
+                self._latest_raw_frame = f
+                self._cap_ok = True
+                self._last_frame_time = time.time()
+
+    def run(self):
+        ffmpeg, cap, inf_t, cap_t = None, None, None, None
+        try:
+            if self.models is None:
+                paths = self.model_paths if isinstance(self.model_paths, list) else [self.model_paths]
+                print(f"[WORKER-TIMER] Camera {self.cam_id} background model loading started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+                t_load_start = time.time()
+                self.models = [get_yolo_model(mp) for mp in paths]
+                print(f"[WORKER-TIMER] Camera {self.cam_id} models loaded in {int((time.time() - t_load_start)*1000)}ms at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {paths}", flush=True)
+
+            while not self._stop_event.is_set():
+                if inf_t: inf_t.join(timeout=1)
+                if cap: cap.release(); cap = None
+                if ffmpeg:
+                    try: ffmpeg.stdin.close()
+                    except: pass
+                    ffmpeg.kill(); ffmpeg.wait()
+                    ffmpeg = None
+                
+                if self._stop_event.is_set():
+                    break
+
+                self._frame_queue = queue.Queue(maxsize=1)
+                self._result_queue = queue.Queue(maxsize=1)
+                self._latest_raw_frame = None
+                self._cap_ok = True
+
+                try:
+                    print(f"[WORKER-TIMER] Camera {self.cam_id} creating FFmpeg process...", flush=True)
+                    t_ff_start = time.time()
+                    ffmpeg = self._create_ffmpeg()
+                    print(f"[WORKER-TIMER] Camera {self.cam_id} FFmpeg process created in {int((time.time() - t_ff_start)*1000)}ms", flush=True)
+                    
+
+                    print(f"[WORKER-TIMER] Camera {self.cam_id} connecting to RTSP at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}...", flush=True)
+                    t_conn_start = time.time()
+                    cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    
+                    retry_count = 0
+                    while not cap.isOpened() and retry_count < 10 and not self._stop_event.is_set():
+                        time.sleep(0.5)
+                        cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                        retry_count += 1
+                    
+                    if self._stop_event.is_set():
+                        break
+                    
+                    print(f"[WORKER-TIMER] Camera {self.cam_id} RTSP connected in {int((time.time() - t_conn_start)*1000)}ms at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+
+                    if cap and cap.isOpened():
+                        cap_t = threading.Thread(target=self._capture_thread, args=(cap,), daemon=True)
+                        cap_t.start()
+
+                    # Wait for first real raw frame from camera
+                    t_frame_start = time.time()
+                    while time.time() - t_frame_start < 5.0 and self._latest_raw_frame is None and not self._stop_event.is_set():
+                        time.sleep(0.05)
+                    
+                    if self._stop_event.is_set():
+                        break
+                    
+                    print(f"[WORKER-TIMER] Camera {self.cam_id} first raw frame received in {int((time.time() - t_frame_start)*1000)}ms at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+                    
+                    inf_t = threading.Thread(target=self._inference_thread, daemon=True)
+                    inf_t.start()
+                    
+                    f_int = 1.0 / self.fps
+                    next_frame_time = time.time()
+                    
+                    while not self._stop_event.is_set():
+                        if cap and cap.isOpened():
+                            if not self._cap_ok or time.time() - self._last_frame_time > 15.0: break
+                        
+                        now = time.time()
+                        if now < next_frame_time:
+                            time.sleep(max(0.001, next_frame_time - now))
+                            continue
+                        next_frame_time += f_int
+                        if now - next_frame_time > 0.3:
+                            next_frame_time = now + f_int
+                        
+                        with self._frame_lock:
+                            f = self._latest_raw_frame
+                        
+                        if f is None:
+                            continue
+                        
+                        # Ultra-fast in-place resize to 720p HD
+                        pf = cv2.resize(f, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
+                        
+                        # Send copy to inference thread if ready
+                        if not self._frame_queue.full():
+                            try:
+                                self._frame_queue.put_nowait(pf.copy())
+                            except:
+                                pass
+                        
+                        # Draw ROI boundary if active
+                        if self.roi_polygon and len(self.roi_polygon) == 2:
+                            try:
+                                fh, fw = pf.shape[:2]
+                                min_x = min(self.roi_polygon[0][0], self.roi_polygon[1][0])
+                                max_x = max(self.roi_polygon[0][0], self.roi_polygon[1][0])
+                                min_y = min(self.roi_polygon[0][1], self.roi_polygon[1][1])
+                                max_y = max(self.roi_polygon[0][1], self.roi_polygon[1][1])
+                                
+                                rx1, ry1 = int(min_x * fw), int(min_y * fh)
+                                rx2, ry2 = int(max_x * fw), int(max_y * fh)
+                                
+                                def _corner_dist(x_pct, y_pct):
+                                    d_fwd = 2.5 / (max(0.08, y_pct - 0.05)**0.95)
+                                    d_lat = (x_pct - 0.5) * (5.0 / (max(0.08, y_pct - 0.05)**0.5))
+                                    return round((d_fwd**2 + d_lat**2)**0.5, 1)
+
+                                d_tl = _corner_dist(min_x, min_y)
+                                d_tr = _corner_dist(max_x, min_y)
+                                d_bl = _corner_dist(min_x, max_y)
+                                d_br = _corner_dist(max_x, max_y)
+
+                                cv2.rectangle(pf, (rx1, ry1), (rx2, ry2), (0, 255, 0), 2)
+                                
+                                # Distance display (commented out for now, preserved for future use):
+                                # def _draw_tag(text, px, py, align_right=False, center=False):
+                                #     tsz = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)[0]
+                                #     if center:
+                                #         bx = px - tsz[0] // 2 - 4
+                                #     elif align_right:
+                                #         bx = px - tsz[0] - 6
+                                #     else:
+                                #         bx = px
+                                #     by = max(0, min(fh - 18, py))
+                                #     cv2.rectangle(pf, (bx, by), (bx + tsz[0] + 6, by + tsz[1] + 6), (0, 255, 0), -1)
+                                #     cv2.putText(pf, text, (bx + 3, by + tsz[1] + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 0, 0), 1, cv2.LINE_AA)
+                                # dist_near = min(d_bl, d_br)
+                                # dist_far = max(d_tl, d_tr)
+                                # _draw_tag(f"ROI: {dist_near}m - {dist_far}m", int((rx1 + rx2) / 2), max(0, ry1 - 18), center=True)
+                                # _draw_tag(f"TL: {d_tl}m", rx1 + 3, ry1 + 3)
+                                # _draw_tag(f"TR: {d_tr}m", rx2 - 3, ry1 + 3, align_right=True)
+                                # _draw_tag(f"BL: {d_bl}m", rx1 + 3, ry2 - 18)
+                                # _draw_tag(f"BR: {d_br}m", rx2 - 3, ry2 - 18, align_right=True)
+                            except:
+                                pass
+
+                        # Draw latest bounding boxes
+                        with self._box_lock:
+                            cur_boxes = list(self._latest_boxes)
+                        
+                        if cur_boxes:
+                            for b_xyxy, label_text, color_val in cur_boxes:
+                                try:
+                                    x1, y1, x2, y2 = [int(v) for v in b_xyxy]
+                                    if self.roi_polygon and len(self.roi_polygon) == 2:
+                                        fh, fw = pf.shape[:2]
+                                        rx1 = int(min(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                                        ry1 = int(min(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                                        rx2 = int(max(self.roi_polygon[0][0], self.roi_polygon[1][0]) * fw)
+                                        ry2 = int(max(self.roi_polygon[0][1], self.roi_polygon[1][1]) * fh)
+                                        cx = int((x1 + x2) / 2)
+                                        cy = int((y1 + y2) / 2)
+                                        if not (rx1 <= cx <= rx2 and ry1 <= cy <= ry2):
+                                            continue
+
+                                    cv2.rectangle(pf, (x1, y1), (x2, y2), color_val, 2)
+                                    t_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)[0]
+                                    cv2.rectangle(pf, (x1, max(0, y1 - t_size[1] - 6)), (x1 + t_size[0] + 6, max(0, y1)), color_val, -1)
+                                    cv2.putText(pf, label_text, (x1 + 3, max(t_size[1] + 2, y1 - 3)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+                                except: pass
+                        
+                        if ffmpeg.poll() is not None: break
+                        try:
+                            ffmpeg.stdin.write(pf.tobytes())
+                            ffmpeg.stdin.flush()
+                        except: break
+                except:
+                    import traceback
+                    traceback.print_exc()
+        finally:
+            if cap: cap.release()
+            if ffmpeg:
+                try: ffmpeg.stdin.close()
+                except: pass
+                ffmpeg.kill(); ffmpeg.wait()
+# import cv2, subprocess, os, time, threading, queue, json
+# from datetime import datetime
+# from ultralytics import YOLO
+# from ultralytics.utils.plotting import Annotator, colors
+# try:
+#     import psycopg2
+#     PSYCOPG2_AVAILABLE = True
+# except ImportError:
+#     PSYCOPG2_AVAILABLE = False
+
+# # Load .env file
+# try:
+#     from dotenv import load_dotenv
+#     load_dotenv()
+# except ImportError:
+#     pass  # If dotenv not installed, just use system env vars
+
+# from pathlib import Path
+# import sys
+
+# BASE_DIR = Path(__file__).resolve().parents[1]
+# if str(BASE_DIR) not in sys.path:
+#     sys.path.insert(0, str(BASE_DIR))
+
+# from alert_store import DB_DSN, ensure_alerts_schema, insert_alert_db
+
+# ALERTS_BASE_URL = os.getenv("ALERTS_BASE_URL", "")
+
+# os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;30000000|reorder_queue_size;30|probesize;10000000|analyzeduration;10000000"
+
+# class DetectorWorker:
+#     def __init__(self, rtsp_url, output_dir, model_paths, fps=15, conf=0.25, iou=0.45, location=None):
+#         self.rtsp_url, self.output_dir, self.fps, self.conf, self.iou = rtsp_url, output_dir, fps, conf, iou
+#         self.location = location or f"Camera {os.path.basename(output_dir).replace('stream', '').replace('_detected', '')}"
+#         self.width, self.height = 1280, 720
+#         self._stop_event, self._frame_queue, self._result_queue = threading.Event(), queue.Queue(maxsize=2), queue.Queue(maxsize=2)
+#         self._latest_raw_frame, self._frame_lock, self._cap_ok, self._last_frame_time = None, threading.Lock(), True, time.time()
+#         self.alert_timers, self.alert_triggered = {}, set()
+#         self.cam_id = os.path.basename(output_dir).replace("stream", "").replace("_detected", "")
+#         self.models = [YOLO(mp) for mp in (model_paths if isinstance(model_paths, list) else [model_paths])]
+#         self._db_conn = None
+
+#     def _get_db_conn(self):
+#         if not PSYCOPG2_AVAILABLE: return None
+#         if self._db_conn is None or self._db_conn.closed:
+#             try:
+#                 self._db_conn = psycopg2.connect(DB_DSN, connect_timeout=5)
+#             except: self._db_conn = None
+#         return self._db_conn
+
+#     def _create_ffmpeg(self):
+#         os.makedirs(self.output_dir, exist_ok=True)
+#         # Optimized for Remote/VPN (Tailscale) viewing:
+#         # - Set hls_time to 2s for lower latency
+#         # - Increased quality and bitrate (500k) for crisp visual inspection
+#         # - Added ultra-fast preset and zerolatency tune for minimal latency
+#         # - Added temp_file flag to prevent incomplete segment reading
+#         cmd = [
+#             "ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{self.width}x{self.height}", 
+#             "-r", str(self.fps), "-i", "-", "-an", "-c:v", "libx264", "-preset", "ultrafast", 
+#             "-tune", "zerolatency", "-pix_fmt", "yuv420p", 
+#             "-b:v", "500k", "-maxrate", "600k", "-bufsize", "1000k",
+#             "-g", str(int(self.fps * 2)), # GOP = 2 * FPS for 2s segments
+#             "-keyint_min", str(int(self.fps * 2)), 
+#             "-f", "hls", "-hls_time", "2", "-hls_list_size", "8",
+#             "-hls_flags", "delete_segments+independent_segments+discont_start+temp_file", 
+#             "-hls_segment_filename", os.path.join(self.output_dir, "segment_%d.ts"), 
+#             os.path.join(self.output_dir, "playlist.m3u8")
+#         ]
+#         log = open(os.path.join(self.output_dir, "ffmpeg.log"), "a")
+#         return subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=log, stdout=subprocess.DEVNULL)
+
+#     def _letterbox(self, f):
+#         h, w = f.shape[:2]
+#         s = min(self.width/w, self.height/h)
+#         nw, nh = int(w*s), int(h*s)
+#         res = cv2.resize(f, (nw, nh))
+#         return cv2.copyMakeBorder(res, (self.height-nh)//2, (self.height-nh+1)//2, (self.width-nw)//2, (self.width-nw+1)//2, cv2.BORDER_CONSTANT, value=[0,0,0])
+
+#     def _run_all_models(self, f):
+#         try:
+#             ann, cur_cls, now = Annotator(f.copy(), line_width=2), set(), time.time()
+#             for midx, model in enumerate(self.models):
+#                 for r in model.predict(f, conf=self.conf, iou=self.iou, imgsz=640, verbose=False):
+#                     if r.boxes:
+#                         for b in r.boxes:
+#                             cls = r.names[int(b.cls[0])]
+#                             cur_cls.add(cls)
+#                             ann.box_label(b.xyxy[0].cpu().numpy().tolist(), f"{cls} {float(b.conf[0]):.2f}", color=colors(int(b.cls[0])+midx*50, True))
+#             res = ann.result()
+#             for c in cur_cls:
+#                 if c not in self.alert_timers: self.alert_timers[c] = now
+#                 elif now - self.alert_timers[c] >= 3.0 and c not in self.alert_triggered:
+#                     self.alert_triggered.add(c); self._save_alert(c, res)
+#             for c in list(self.alert_timers):
+#                 if c not in cur_cls:
+#                     del self.alert_timers[c]
+#                     if c in self.alert_triggered: self.alert_triggered.remove(c)
+#             return res
+#         except: return f
+
+#     def _save_alert(self, class_name, frame):
+#         try:
+#             now_dt = datetime.now()
+#             ts = now_dt.strftime("%Y%m%d_%H%M%S")
+#             filename = f"cam{self.cam_id}_{ts}_{class_name}.jpg"
+#             adir = os.path.join(os.path.dirname(self.output_dir), "alerts")
+#             os.makedirs(adir, exist_ok=True)
+#             cv2.imwrite(os.path.join(adir, filename), frame)
+
+#             # Create full image path
+#             if ALERTS_BASE_URL:
+#                 image_path = f"{ALERTS_BASE_URL.rstrip('/')}/hls/alerts/{filename}"
+#             else:
+#                 image_path = f"/hls/alerts/{filename}"
+
+#             # Direct DB Store using provided logic and custom location
+#             conn = self._get_db_conn()
+#             if conn:
+#                 try:
+#                     cur = conn.cursor()
+#                     ensure_alerts_schema(cur)
+#                     insert_alert_db(cur, self.cam_id, self.location, f"{class_name} Detected", image_path, now_dt)
+#                     conn.commit()
+#                     cur.close()
+#                 except: 
+#                     if self._db_conn: self._db_conn.rollback()
+
+#             # Local JSON Store
+#             try:
+#                 adir_root = os.path.dirname(os.path.dirname(self.output_dir))
+#                 alog = os.path.join(adir_root, "hls", "alerts", "alerts.json")
+#                 os.makedirs(os.path.dirname(alog), exist_ok=True)
+#                 data = json.load(open(alog)) if os.path.exists(alog) else []
+#                 data.append({"camera": self.cam_id, "time": now_dt.strftime("%Y-%m-%d %H:%M:%S"), "event": f"{class_name} Detected", "image": image_path})
+#                 json.dump(data, open(alog, "w"), indent=4)
+#             except: pass
+#         except: pass
+
+#     def _get_connecting_frame(self):
+#         # Create a fallback frame with message
+#         import numpy as np
+#         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+#         cv2.putText(frame, "Connecting to Camera...", 
+#                    (int(self.width*0.2), int(self.height*0.5)), 
+#                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+#         return frame
+
+#     def _inference_thread(self):
+#         while not self._stop_event.is_set():
+#             try: f = self._frame_queue.get(timeout=1.0)
+#             except: continue
+#             ann = self._run_all_models(f)
+#             if self._result_queue.full():
+#                 try: self._result_queue.get_nowait()
+#                 except: pass
+#             self._result_queue.put(ann)
+
+#     def _capture_thread(self, cap):
+#         retry_count = 0
+#         max_retries = 10
+#         while not self._stop_event.is_set():
+#             ret, f = cap.read()
+#             if not ret:
+#                 retry_count +=1
+#                 if retry_count > max_retries:
+#                     self._cap_ok = False
+#                     break
+#                 time.sleep(2)
+#                 continue
+#             retry_count =0 # Reset retry count on success
+#             with self._frame_lock:
+#                 self._latest_raw_frame, self._cap_ok, self._last_frame_time = f, True, time.time()
+
+#     def run(self):
+#         ffmpeg, cap, inf_t, cap_t = None, None, None, None
+#         while True:
+#             self._stop_event.set()
+#             if inf_t: inf_t.join(timeout=5)
+#             if cap: cap.release()
+#             if ffmpeg:
+#                 try: ffmpeg.stdin.close()
+#                 except: pass
+#                 ffmpeg.kill(); ffmpeg.wait()
+#             self._stop_event.clear(); self._frame_queue, self._result_queue, self._latest_raw_frame, self._cap_ok = queue.Queue(maxsize=2), queue.Queue(maxsize=2), None, True
+#             try:
+#                 # Initialize default dimensions early for fallback frame
+#                 self.width, self.height = 854, 480
+                
+#                 cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+#                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+                
+#                 retry_count = 0
+#                 while not cap.isOpened() and retry_count < 10:
+#                     time.sleep(2)
+#                     cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+#                     retry_count +=1
+#                 if not cap.isOpened(): 
+#                     # If we can't open camera, still run FFmpeg with fallback frame
+#                     h, w = 480, 854
+#                 else:
+#                     h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+#                     w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+#                     if not h or not w: h, w = 480, 854
+                
+#                 self.width = 854; self.height = int(int(h) * (854 / int(w)))
+#                 self.height += self.height % 2; ffmpeg = self._create_ffmpeg()
+#                 inf_t = threading.Thread(target=self._inference_thread, daemon=True); inf_t.start()
+#                 if cap and cap.isOpened():
+#                     cap_t = threading.Thread(target=self._capture_thread, args=(cap,), daemon=True); cap_t.start()
+                
+#                 f_int, last_w, last_ann = 1.0 / self.fps, 0.0, None
+#                 while True:
+#                     if cap and cap.isOpened():
+#                         if not self._cap_ok or time.time() - self._last_frame_time > 15.0: break
+#                     with self._frame_lock: f = self._latest_raw_frame
+                    
+#                     # Use fallback connecting frame if no frame available
+#                     if f is None: 
+#                         f = self._get_connecting_frame()
+                    
+#                     now = time.time()
+#                     # Only letterbox if we are going to use it for FFmpeg OR if inference queue is empty
+#                     if now - last_w >= f_int or not self._frame_queue.full():
+#                         pf = self._letterbox(f)
+#                         if not self._frame_queue.full() and cap and cap.isOpened(): 
+#                             self._frame_queue.put(pf)
+#                     else:
+#                         time.sleep(0.005)
+#                         continue
+
+#                     try: last_ann = self._result_queue.get_nowait()
+#                     except: pass
+                    
+#                     if now - last_w < f_int: continue
+#                     last_w = now; out = last_ann if last_ann is not None else pf
+#                     if ffmpeg.poll() is not None: break
+#                     try: 
+#                         ffmpeg.stdin.write(out.tobytes())
+#                         ffmpeg.stdin.flush()
+#                     except: break
+#             except: 
+#                 import traceback
+#                 traceback.print_exc()
+#             time.sleep(3)

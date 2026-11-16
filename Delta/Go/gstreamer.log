@@ -1,0 +1,3 @@
+0:05:02.562081833 [31m16656[00m    0x11fea5e70 [33;01mWARN   [00m [00m              srtsrc gstsrtsrc.c:227:gst_srt_src_fill:<srtsrc0>[00m discont detected 752552247 (expected: 0)
+0:05:05.239682500 [31m16656[00m    0x11fea5030 [32;01mFIXME  [00m [00m            basesink gstbasesink.c:3399:gst_base_sink_default_event:<sink>[00m stream-start event without group-id. Consider implementing group-id handling in the upstream elements
+0:05:05.248687417 [31m16656[00m    0x11fea5030 [32;01mFIXME  [00m [00;35m          aggregator gstaggregator.c:1530:gst_aggregator_loop:<muxer>[00m Subclass should call gst_aggregator_selected_samples() from its aggregate implementation.

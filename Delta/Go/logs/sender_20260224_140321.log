@@ -1,0 +1,99 @@
+[14:03:21.641] Log file created: logs/sender_20260224_140321.log
+[14:03:21.641] 
+[14:03:21.641] ============================================================
+[14:03:21.641] DELTA SENDER - RTSP to SRT Transcoder (Optimized - Stall Fixed)
+[14:03:21.641] ============================================================
+[14:03:21.641]   Output: Original @ 25fps | 800 kbps | x265enc | B-frames:3
+[14:03:21.641]   Chunks: 120 seconds | QP Range: 18-35 | Buffer: 50 MB
+[14:03:21.641]   RTSP Protocol: tcp
+[14:03:21.641] ============================================================
+[14:03:21.641] 
+[14:03:21.641] Probing input stream...
+[14:03:22.903] 
+[14:03:22.903] ============================================================
+[14:03:22.903] INPUT STREAM INFORMATION
+[14:03:22.903] ============================================================
+[14:03:22.903]   Resolution:      2304 x 1296
+[14:03:22.903]   Frame Rate:      25.00 fps
+[14:03:22.903]   Codec:           h264 (Profile: High, Level: 5.0)
+[14:03:22.903]   Pixel Format:    yuv420p
+[14:03:22.903]   Bitrate:         4.0 Mbps (4000 kbps)
+[14:03:22.903]   Raw Frame Size:  4374.0 KB (uncompressed)
+[14:03:22.903]   Input Frame Avg: 19.5 KB (compressed input)
+[14:03:22.903]   Raw Stream:      896 Mbps (if uncompressed)
+[14:03:22.903] ============================================================
+[14:03:22.903] 
+[14:03:22.903] ============================================================
+[14:03:22.903] ENCODING PLAN
+[14:03:22.903] ============================================================
+[14:03:22.903]   Input -> Output:  2304x1296 @ 25fps -> 2304x1296 @ 25fps
+[14:03:22.903]   Target Bitrate:  800 kbps
+[14:03:22.903]   Encoder:         x265enc
+[14:03:22.903]   GOP Structure:   Keyint=50, B-frames=3, Ref=3
+[14:03:22.903]   Quantization:    qmin=18, qmax=35
+[14:03:22.903] ------------------------------------------------------------
+[14:03:22.903]   EXPECTED COMPRESSION
+[14:03:22.903]     Raw Frame:       4374.0 KB
+[14:03:22.903]     Output Frame:    3.9 KB (at target bitrate)
+[14:03:22.903]     vs Raw:          99.9% compression (1120:1)
+[14:03:22.903]     vs Input:        80.0% compression
+[14:03:22.903]     Expected chunk:  ~11.7 MB (every 120 sec @ target bitrate)
+[14:03:22.903]   NOTE: Actual chunk size depends on content complexity
+[14:03:22.903] ============================================================
+[14:03:22.903] 
+[14:03:22.903] 
+--------------------------------------------------------------------------------
+[14:03:22.903] GSTREAMER PIPELINE:
+[14:03:22.903] gst-launch-1.0 -e -v rtspsrc location="rtsp://admin:Algo_1212@192.168.96.231:554/stream1" protocols=tcp latency=0 timeout=10000 do-retransmission=false ! application/x-rtp,media=video ! rtph264depay ! queue max-size-buffers=5 max-size-time=120000000000 max-size-bytes=52428800 leaky=downstream ! h264parse ! avdec_h264 max-threads=10 ! identity silent=false ! videoconvert ! video/x-raw,format=I420 ! videoscale ! videorate ! video/x-raw,width=2304,height=1296,framerate=25/1 ! x265enc bitrate=800 key-int-max=50 speed-preset=veryfast tune=zerolatency ! video/x-h265,stream-format=byte-stream,profile=main ! h265parse config-interval=-1 ! mpegtsmux alignment=7 ! queue max-size-time=0 ! srtsink uri="srt://127.0.0.1:9003?mode=caller&latency=120&rcvbuf=52428800&sndbuf=52428800" sync=false
+[14:03:22.903] --------------------------------------------------------------------------------
+[14:03:22.903] Starting pipeline...
+[14:03:22.904] GStreamer PID: 42294
+[14:03:23.059] DEBUG: GST: Setting pipeline to PAUSED ...
+[14:03:23.062] DEBUG: GST: Pipeline is live and does not need PREROLL ...
+[14:03:23.062] DEBUG: GST: Progress: (open) Opening Stream
+[14:03:23.062] DEBUG: GST: Pipeline is PREROLLED ...
+[14:03:23.062] DEBUG: GST: Prerolled, waiting for progress to finish...
+[14:03:23.062] DEBUG: GST: Progress: (connect) Connecting to rtsp://admin:Algo_1212@192.168.96.231:554/stream1
+[14:03:23.075] DEBUG: GST: Progress: (open) Retrieving server options
+[14:03:23.080] DEBUG: GST: Progress: (open) Retrieving media info
+[14:03:23.093] DEBUG: GST: Progress: (request) SETUP stream 0
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: latency = 0
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: ntp-sync = false
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: rfc7273-sync = false
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: add-reference-timestamp-meta = false
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: ntp-time-source = ntp
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: drop-on-latency = false
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: max-rtcp-rtp-time-diff = -1
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: max-ts-offset-adjustment = 0
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: buffer-mode = slave
+[14:03:23.101] DEBUG: GST: Progress: (open) Opened Stream
+[14:03:23.101] Pipeline PLAYING - startup time: 198ms
+[14:03:23.101] DEBUG: GST: Setting pipeline to PLAYING ...
+[14:03:23.101] DEBUG: GST: New clock: GstSystemClock
+[14:03:23.101] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager: buffer-mode = slave
+[14:03:23.101] DEBUG: GST: Progress: (request) Sending PLAY request
+[14:03:23.101] DEBUG: GST: Progress: (request) Sending PLAY request
+[14:03:23.105] DEBUG: GST: Progress: (request) Sent PLAY request
+[14:03:23.150] DEBUG: GST: Redistribute latency...
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: latency = 0
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: drop-on-latency = false
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: do-lost = false
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: mode = slave
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: do-retransmission = false
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: max-rtcp-rtp-time-diff = -1
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: max-dropout-time = 60000
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: max-misorder-time = 2000
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: rfc7273-sync = false
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: add-reference-timestamp-meta = false
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: max-ts-offset-adjustment = 0
+[14:03:23.150] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpJitterBuffer:rtpjitterbuffer0: sync-interval = 0
+[14:03:25.316] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpSession:rtpsession0: stats = application/x-rtp-session-stats, rtx-drop-count=(uint)0, sent-nack-count=(uint)0, recv-nack-count=(uint)0, source-stats=(GValueArray)< "application/x-rtp-source-stats\,\ ssrc\=\(uint\)3001761340\,\ internal\=\(boolean\)true\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)false\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)-1\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)0\,\ packets-received\=\(guint64\)0\,\ bytes-received\=\(guint64\)0\,\ bitrate\=\(guint64\)0\,\ packets-lost\=\(int\)0\,\ jitter\=\(uint\)0\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)0\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\,\ received-rr\=\(int\)\{\ \ \}\;", "application/x-rtp-source-stats\,\ ssrc\=\(uint\)1911446582\,\ internal\=\(boolean\)false\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)true\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)90000\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)300329\,\ packets-received\=\(guint64\)238\,\ bytes-received\=\(guint64\)309849\,\ bitrate\=\(guint64\)1162986\,\ packets-lost\=\(int\)-1\,\ jitter\=\(uint\)62\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)215\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ sent-rb\=\(boolean\)true\,\ sent-rb-fractionlost\=\(uint\)0\,\ sent-rb-packetslost\=\(int\)-1\,\ sent-rb-exthighestseq\=\(uint\)40005\,\ sent-rb-jitter\=\(uint\)62\,\ sent-rb-lsr\=\(uint\)0\,\ sent-rb-dlsr\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\;" >, rtx-count=(uint)0, recv-rtx-req-count=(uint)0, sent-rtx-req-count=(uint)0;
+[14:03:25.907] Connected to receiver HTTP server on port 8080
+[14:03:26.687] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpSession:rtpsession0: stats = application/x-rtp-session-stats, rtx-drop-count=(uint)0, sent-nack-count=(uint)0, recv-nack-count=(uint)0, source-stats=(GValueArray)< "application/x-rtp-source-stats\,\ ssrc\=\(uint\)3001761340\,\ internal\=\(boolean\)true\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)false\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)-1\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)0\,\ packets-received\=\(guint64\)0\,\ bytes-received\=\(guint64\)0\,\ bitrate\=\(guint64\)0\,\ packets-lost\=\(int\)0\,\ jitter\=\(uint\)0\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)0\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\,\ received-rr\=\(int\)\{\ \ \}\;", "application/x-rtp-source-stats\,\ ssrc\=\(uint\)1911446582\,\ internal\=\(boolean\)false\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)true\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)90000\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)402448\,\ packets-received\=\(guint64\)329\,\ bytes-received\=\(guint64\)415608\,\ bitrate\=\(guint64\)1162986\,\ packets-lost\=\(int\)-1\,\ jitter\=\(uint\)107\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)72\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ sent-rb\=\(boolean\)true\,\ sent-rb-fractionlost\=\(uint\)0\,\ sent-rb-packetslost\=\(int\)-1\,\ sent-rb-exthighestseq\=\(uint\)40005\,\ sent-rb-jitter\=\(uint\)62\,\ sent-rb-lsr\=\(uint\)0\,\ sent-rb-dlsr\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\;" >, rtx-count=(uint)0, recv-rtx-req-count=(uint)0, sent-rtx-req-count=(uint)0;
+[14:03:30.119] DEBUG: GST: /GstPipeline:pipeline0/GstRTSPSrc:rtspsrc0/GstRtpBin:manager/GstRtpSession:rtpsession0: stats = application/x-rtp-session-stats, rtx-drop-count=(uint)0, sent-nack-count=(uint)0, recv-nack-count=(uint)0, source-stats=(GValueArray)< "application/x-rtp-source-stats\,\ ssrc\=\(uint\)3001761340\,\ internal\=\(boolean\)true\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)false\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)-1\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)0\,\ packets-received\=\(guint64\)0\,\ bytes-received\=\(guint64\)0\,\ bitrate\=\(guint64\)0\,\ packets-lost\=\(int\)0\,\ jitter\=\(uint\)0\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)0\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\,\ received-rr\=\(int\)\{\ \ \}\;", "application/x-rtp-source-stats\,\ ssrc\=\(uint\)1911446582\,\ internal\=\(boolean\)false\,\ validated\=\(boolean\)true\,\ received-bye\=\(boolean\)false\,\ is-csrc\=\(boolean\)false\,\ is-sender\=\(boolean\)true\,\ seqnum-base\=\(int\)-1\,\ clock-rate\=\(int\)90000\,\ octets-sent\=\(guint64\)0\,\ packets-sent\=\(guint64\)0\,\ octets-received\=\(guint64\)706429\,\ packets-received\=\(guint64\)582\,\ bytes-received\=\(guint64\)729709\,\ bitrate\=\(guint64\)947231\,\ packets-lost\=\(int\)-1\,\ jitter\=\(uint\)44\,\ sent-pli-count\=\(uint\)0\,\ recv-pli-count\=\(uint\)0\,\ sent-fir-count\=\(uint\)0\,\ recv-fir-count\=\(uint\)0\,\ sent-nack-count\=\(uint\)0\,\ recv-nack-count\=\(uint\)0\,\ recv-packet-rate\=\(uint\)128\,\ have-sr\=\(boolean\)false\,\ sr-ntptime\=\(guint64\)0\,\ sr-rtptime\=\(uint\)0\,\ sr-octet-count\=\(uint\)0\,\ sr-packet-count\=\(uint\)0\,\ sent-rb\=\(boolean\)true\,\ sent-rb-fractionlost\=\(uint\)0\,\ sent-rb-packetslost\=\(int\)-1\,\ sent-rb-exthighestseq\=\(uint\)40349\,\ sent-rb-jitter\=\(uint\)44\,\ sent-rb-lsr\=\(uint\)0\,\ sent-rb-dlsr\=\(uint\)0\,\ have-rb\=\(boolean\)false\,\ rb-ssrc\=\(uint\)0\,\ rb-fractionlost\=\(uint\)0\,\ rb-packetslost\=\(int\)0\,\ rb-exthighestseq\=\(uint\)0\,\ rb-jitter\=\(uint\)0\,\ rb-lsr\=\(uint\)0\,\ rb-dlsr\=\(uint\)0\,\ rb-round-trip\=\(uint\)0\;" >, rtx-count=(uint)0, recv-rtx-req-count=(uint)0, sent-rtx-req-count=(uint)0;
+[14:03:31.501] Stopping...
+[14:03:31.501] DEBUG: GST: handling interrupt.
+[14:03:31.502] DEBUG: GST: Interrupt: Stopping pipeline ...
+[14:03:31.502] Sending SIGINT to GStreamer...
+[14:03:31.502] DEBUG: GST: EOS on shutdown enabled -- Forcing EOS on the pipeline
+[14:03:36.503] Force killing GStreamer

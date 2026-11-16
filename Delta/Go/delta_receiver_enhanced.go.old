@@ -1,0 +1,936 @@
+// delta_receiver_enhanced.go - Robust Continuous Receiver with SplitMuxSink
+//go:build receiver
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+)
+
+func main() {
+	fmt.Println(" RTSP DELTA RECEIVER - Continuous Stream Saver")
+
+	var (
+		srtURI     string
+		outputDir  string
+		filename   string
+		buffer     int
+		chunkTime  int
+		maxChunks  int
+		display    bool
+		saveChunks bool
+		help       bool
+	)
+
+	flag.StringVar(&srtURI, "srt", "", "SRT listen URI (e.g., srt://:9000)")
+	flag.StringVar(&outputDir, "output", "./received", "Output directory")
+	flag.StringVar(&filename, "filename", "chunk", "Filename prefix")
+	flag.IntVar(&buffer, "buffer", 120, "SRT buffer in ms")
+	flag.IntVar(&chunkTime, "chunk-time", 30, "Chunk duration in seconds")
+	flag.IntVar(&maxChunks, "max-chunks", 0, "Maximum number of chunks (0=unlimited)")
+	flag.BoolVar(&display, "display", false, "Display video while receiving")
+	flag.BoolVar(&saveChunks, "save-chunks", true, "Save video chunks")
+	flag.BoolVar(&help, "help", false, "Show help")
+
+	flag.Parse()
+
+	if help {
+		fmt.Printf("Usage: %s --srt srt://:9000 [options]\n", os.Args[0])
+		return
+	}
+
+	if srtURI == "" {
+		fmt.Fprintf(os.Stderr, "Error: --srt is required\n")
+		os.Exit(1)
+	}
+
+	port := extractPort(srtURI)
+
+	// Create output directory
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Clean up previous partial files if necessary? No, let's keep them or maybe warn.
+	// For now, we just start.
+
+	fmt.Println("\n=== RECEIVER CONFIG ===")
+	fmt.Printf("Port:        %d\n", port)
+	fmt.Printf("Buffer:      %d ms\n", buffer)
+	fmt.Printf("Chunk Time:  %d seconds\n", chunkTime)
+	fmt.Printf("Output:      %s\n", outputDir)
+
+	// Start monitoring in background
+	go monitorOutputFiles(outputDir, filename, chunkTime)
+
+	runContinuousReceiver(port, buffer, outputDir, filename, chunkTime, maxChunks, display, saveChunks)
+}
+
+func extractPort(srtURI string) int {
+	if strings.Contains(srtURI, ":") {
+		parts := strings.Split(srtURI, ":")
+		if len(parts) > 0 {
+			portStr := parts[len(parts)-1]
+			if port, err := strconv.Atoi(portStr); err == nil {
+				return port
+			}
+		}
+	}
+	return 9000
+}
+
+func runContinuousReceiver(port, buffer int, outputDir, filename string, chunkTime, maxChunks int, display, saveChunks bool) {
+	fmt.Println("\n=== STARTING CONTINUOUS RECEIVER ===")
+
+	// Construct the location pattern for splitmuxsink
+	// It uses printf style formatting, e.g. chunk_%05d.mp4
+	filePattern := filepath.Join(outputDir, fmt.Sprintf("%s_%%05d.mp4", filename))
+
+	// Convert chunkTime to nanoseconds
+	nanos := int64(chunkTime) * 1000 * 1000 * 1000
+
+	var pipeline string
+
+	srtSource := fmt.Sprintf("srtsrc uri=\"srt://:%d?mode=listener&latency=%d\" wait-for-connection=true ! queue ! tsdemux name=demux ", port, buffer)
+
+	fileSinkPart := ""
+	if saveChunks {
+		fileSinkPart = fmt.Sprintf("demux. ! queue ! h264parse ! splitmuxsink location=\"%s\" max-size-time=%d muxer=mp4mux ", filePattern, nanos)
+	} else {
+		fileSinkPart = "demux. ! queue ! fakesink "
+	}
+
+	displayPart := ""
+	if display {
+		displayPart = "demux. ! queue ! h264parse ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,width=640,height=360 ! autovideosink sync=false "
+	}
+
+	pipeline = fmt.Sprintf("gst-launch-1.0 -e %s %s %s", srtSource, fileSinkPart, displayPart)
+
+	fmt.Printf("Pipeline: %s\n", pipeline)
+
+	cmd := exec.Command("bash", "-c", pipeline)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start receiver: %v\n", err)
+		return
+	}
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start receiver: %v\n", err)
+		return
+	}
+
+	fmt.Println("Receiver running... Press Ctrl+C to stop.")
+
+	// Wait for signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for process to finish or signal
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-sigChan:
+		fmt.Println("\nStopping receiver...")
+		// Send SIGINT to GStreamer to allow proper EOS and file finalization
+		cmd.Process.Signal(syscall.SIGINT)
+
+		// Wait a bit for graceful shutdown
+		select {
+		case <-done:
+			fmt.Println("Receiver stopped gracefully.")
+		case <-time.After(5 * time.Second):
+			fmt.Println("Receiver unresponsive, force killing...")
+			cmd.Process.Kill()
+		}
+	case err := <-done:
+		if err != nil {
+			fmt.Printf("Receiver exited with error: %v\n", err)
+		} else {
+			fmt.Println("Receiver exited normally.")
+		}
+	}
+}
+
+func monitorOutputFiles(dir, prefix string, chunkTime int) {
+	// Simple monitor: check for new files periodically
+	// "splitmuxsink" creates files sequentially: chunk_00000.mp4, chunk_00001.mp4...
+	// When chunk_N+1 exists, chunk_N is definitely done.
+
+	nextIndex := 0
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Check if current expected file exists
+		currentFile := fmt.Sprintf("%s_%05d.mp4", prefix, nextIndex)
+		currentPath := filepath.Join(dir, currentFile)
+
+		// Check if the NEXT file exists (meaning current is done)
+		nextFile := fmt.Sprintf("%s_%05d.mp4", prefix, nextIndex+1)
+		nextPath := filepath.Join(dir, nextFile)
+
+		if _, err := os.Stat(nextPath); err == nil {
+			// Next file exists, so current file is complete
+			printFileStats(currentPath, chunkTime)
+			nextIndex++
+		}
+	}
+}
+
+func printFileStats(path string, expectedDuration int) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return
+	}
+
+	sizeMB := float64(info.Size()) / (1024 * 1024)
+
+	// Try to get duration/frames via ffprobe if available
+	frames := 0
+	duration := 0.0
+
+	// Quick check with ffprobe
+	cmd := fmt.Sprintf("ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,duration -of csv=p=0 \"%s\"", path)
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	if err == nil {
+		parts := strings.Split(strings.TrimSpace(string(out)), ",")
+		if len(parts) >= 2 {
+			if f, err := strconv.Atoi(parts[0]); err == nil {
+				frames = f
+			}
+			if d, err := strconv.ParseFloat(parts[1], 64); err == nil {
+				duration = d
+			}
+		}
+	}
+
+	// Fallback estimation if ffprobe fails or returns N/A (common for live streams)
+	if duration == 0 {
+		duration = float64(expectedDuration) // approximate
+	}
+	if frames == 0 {
+		// Estimate based on 15fps default
+		frames = int(duration * 15)
+	}
+
+	fmt.Printf("\n>>> Chunk Saved: %s\n", filepath.Base(path))
+	fmt.Printf("    Size:     %.2f MB\n", sizeMB)
+	fmt.Printf("    Duration: %.2f s\n", duration)
+	fmt.Printf("    Frames:   %d\n", frames)
+}
+
+// // delta_receiver_fixed.go - Fixed SRT Receiver
+// //go:build receiver
+
+// package main
+
+// import (
+// 	"bufio"
+// 	"encoding/json"
+// 	"flag"
+// 	"fmt"
+// 	"os"
+// 	"os/exec"
+// 	"os/signal"
+// 	"path/filepath"
+// 	"strconv"
+// 	"strings"
+// 	"sync"
+// 	"syscall"
+// 	"time"
+// )
+
+// type ReceiverStats struct {
+// 	mu                  sync.RWMutex
+// 	StartTime           time.Time     `json:"start_time"`
+// 	TotalDuration       time.Duration `json:"total_duration"`
+// 	TotalChunksReceived int           `json:"total_chunks_received"`
+// 	TotalBytesSaved     int64         `json:"total_bytes_saved"`
+// 	TotalFramesSaved    int64         `json:"total_frames_saved"`
+// 	TotalInputDataMB    float64       `json:"total_input_data_mb"`
+// 	TotalOutputDataMB   float64       `json:"total_output_data_mb"`
+// 	AverageCompression  float64       `json:"average_compression_ratio"`
+// 	CurrentChunk        string        `json:"current_chunk"`
+// 	ChunkSizeMB         float64       `json:"current_chunk_size_mb"`
+// 	FramesInChunk       int64         `json:"frames_in_current_chunk"`
+// 	Bitrate             float64       `json:"current_bitrate_kbps"`
+// 	FPS                 float64       `json:"frames_per_second"`
+// 	ConnectionStatus    string        `json:"connection_status"`
+// 	LastError           string        `json:"last_error"`
+// 	SRTPort             int           `json:"srt_port"`
+// 	BufferSize          int           `json:"buffer_ms"`
+// 	ChunkDuration       int           `json:"chunk_duration_seconds"`
+// 	StoredFiles         []string      `json:"stored_files"`
+// }
+
+// type ChunkInfo struct {
+// 	Filename         string    `json:"filename"`
+// 	SizeBytes        int64     `json:"size_bytes"`
+// 	Duration         float64   `json:"duration_seconds"`
+// 	Frames           int       `json:"frames"`
+// 	BitrateKbps      float64   `json:"bitrate_kbps"`
+// 	Created          time.Time `json:"created"`
+// 	Resolution       string    `json:"resolution"`
+// 	Codec            string    `json:"codec"`
+// 	InputBitrateMbps float64   `json:"input_bitrate_mbps"`
+// 	CompressionRatio float64   `json:"compression_ratio"`
+// 	InputDataMB      float64   `json:"input_data_mb"`
+// 	OutputDataMB     float64   `json:"output_data_mb"`
+// 	FrameRate        float64   `json:"frame_rate"` // Added this field
+// }
+
+// func main() {
+// 	fmt.Println("=== FIXED SRT RECEIVER WITH DELTA ENCODING ANALYSIS ===")
+// 	fmt.Println("SRT → GStreamer → Split Chunks with Compression Analysis")
+
+// 	var (
+// 		srtURI      string
+// 		outputDir   string
+// 		filename    string
+// 		buffer      int
+// 		chunkTime   int
+// 		maxChunks   int
+// 		display     bool
+// 		statsFile   string
+// 		chunkList   string
+// 		verbose     bool
+// 		help        bool
+// 		inputWidth  int
+// 		inputHeight int
+// 		inputFPS    int
+// 		srtLatency  int
+// 	)
+
+// 	flag.StringVar(&srtURI, "srt", "srt://:9000", "SRT listen URI (e.g., srt://:9000)")
+// 	flag.StringVar(&outputDir, "output", "./received", "Output directory")
+// 	flag.StringVar(&filename, "filename", "chunk", "Filename prefix")
+// 	flag.IntVar(&buffer, "buffer", 2000, "Buffer size in ms (increased for stability)")
+// 	flag.IntVar(&chunkTime, "chunk-time", 30, "Chunk duration in seconds")
+// 	flag.IntVar(&maxChunks, "max-chunks", 0, "Maximum number of chunks (0=unlimited)")
+// 	flag.BoolVar(&display, "display", false, "Display video while receiving")
+// 	flag.StringVar(&statsFile, "stats", "./receiver_stats.json", "Statistics output file")
+// 	flag.StringVar(&chunkList, "chunk-list", "./chunks_info.json", "Chunk information file")
+// 	flag.BoolVar(&verbose, "verbose", false, "Show verbose output")
+// 	flag.IntVar(&inputWidth, "input-width", 2304, "Input stream width (for compression calc)")
+// 	flag.IntVar(&inputHeight, "input-height", 1296, "Input stream height (for compression calc)")
+// 	flag.IntVar(&inputFPS, "input-fps", 15, "Input stream FPS (for compression calc)")
+// 	flag.IntVar(&srtLatency, "latency", 120, "SRT latency in ms")
+// 	flag.BoolVar(&help, "help", false, "Show help")
+
+// 	flag.Parse()
+
+// 	if help {
+// 		printReceiverHelp()
+// 		return
+// 	}
+
+// 	port := extractPort(srtURI)
+
+// 	// Create output directory
+// 	if err := os.MkdirAll(outputDir, 0755); err != nil {
+// 		fmt.Printf("Error creating directory: %v\n", err)
+// 		os.Exit(1)
+// 	}
+
+// 	// Calculate raw input bitrate
+// 	rawBitrate := calculateRawBitrate(inputWidth, inputHeight, inputFPS)
+// 	inputBitrateMbps := float64(rawBitrate) / 1000000
+// 	inputBytesPerSecond := rawBitrate / 8
+// 	inputMBps := float64(inputBytesPerSecond) / (1024 * 1024)
+
+// 	fmt.Println("\n=== RECEIVER CONFIG ===")
+// 	fmt.Printf("Port:              %d\n", port)
+// 	fmt.Printf("Latency:           %d ms\n", srtLatency)
+// 	fmt.Printf("Buffer:            %d ms\n", buffer)
+// 	fmt.Printf("Chunk Time:        %d seconds\n", chunkTime)
+// 	fmt.Printf("Max Chunks:        %d\n", maxChunks)
+// 	fmt.Printf("Display:           %v\n", display)
+// 	fmt.Printf("Output dir:        %s\n", outputDir)
+// 	fmt.Printf("Stats file:        %s\n", statsFile)
+// 	fmt.Printf("Chunk list:        %s\n", chunkList)
+// 	fmt.Printf("\nInput Stream Info:\n")
+// 	fmt.Printf("  Resolution:      %dx%d\n", inputWidth, inputHeight)
+// 	fmt.Printf("  FPS:             %d\n", inputFPS)
+// 	fmt.Printf("  Raw Bitrate:     %.2f Mbps\n", inputBitrateMbps)
+// 	fmt.Printf("  Data Rate:       %.2f MB/s\n", inputMBps)
+// 	fmt.Printf("  Chunk Raw Size:  %.1f MB\n", inputMBps*float64(chunkTime))
+
+// 	// Initialize statistics
+// 	stats := &ReceiverStats{
+// 		StartTime:        time.Now(),
+// 		SRTPort:          port,
+// 		BufferSize:       buffer,
+// 		ChunkDuration:    chunkTime,
+// 		ConnectionStatus: "waiting",
+// 		StoredFiles:      []string{},
+// 	}
+
+// 	// Start statistics monitor
+// 	go statsMonitor(stats, statsFile, inputMBps)
+
+// 	fmt.Println("\n=== WAITING FOR SRT STREAM ===")
+// 	fmt.Printf("Listening on port %d...\n", port)
+// 	fmt.Println("Press Ctrl+C to stop")
+
+// 	chunksInfo := make([]ChunkInfo, 0)
+
+// 	// Run receiver
+// 	runReceiver(port, srtLatency, buffer, outputDir, filename, chunkTime, maxChunks,
+// 		display, verbose, stats, &chunksInfo, inputWidth, inputHeight, inputFPS)
+
+// 	// Save chunk information
+// 	saveChunkInfo(chunksInfo, chunkList)
+
+// 	// Calculate final statistics
+// 	stats.mu.Lock()
+// 	stats.TotalDuration = time.Since(stats.StartTime)
+// 	stats.TotalOutputDataMB = float64(stats.TotalBytesSaved) / (1024 * 1024)
+// 	stats.TotalInputDataMB = inputMBps * stats.TotalDuration.Seconds()
+// 	if stats.TotalOutputDataMB > 0 {
+// 		stats.AverageCompression = stats.TotalInputDataMB / stats.TotalOutputDataMB
+// 	}
+// 	stats.ConnectionStatus = "stopped"
+// 	stats.mu.Unlock()
+
+// 	// Save final statistics
+// 	saveReceiverStats(stats, statsFile)
+// 	printFinalReceiverStats(stats, chunksInfo)
+
+// 	fmt.Printf("\nChunk information saved to: %s\n", chunkList)
+// 	fmt.Printf("Final statistics saved to: %s\n", statsFile)
+// }
+
+// func calculateRawBitrate(width, height, fps int) int {
+// 	bytesPerFrame := width * height * 3 / 2
+// 	return bytesPerFrame * 8 * fps
+// }
+
+// func extractPort(srtURI string) int {
+// 	port := 9000
+// 	srtURI = strings.TrimPrefix(srtURI, "srt://")
+// 	if strings.Contains(srtURI, ":") {
+// 		parts := strings.Split(srtURI, ":")
+// 		if len(parts) > 1 {
+// 			if p, err := strconv.Atoi(parts[1]); err == nil && p > 0 {
+// 				port = p
+// 			}
+// 		}
+// 	}
+// 	return port
+// }
+
+// func runReceiver(port, latency, buffer int, outputDir, filename string, chunkTime, maxChunks int,
+// 	display, verbose bool, stats *ReceiverStats, chunksInfo *[]ChunkInfo,
+// 	inputWidth, inputHeight, inputFPS int) {
+
+// 	// Build GStreamer pipeline
+// 	pipeline := buildGStreamerPipeline(port, latency, buffer, outputDir, filename,
+// 		chunkTime, maxChunks, display, verbose)
+
+// 	if verbose {
+// 		fmt.Printf("\nPipeline:\n%s\n", pipeline)
+// 	}
+
+// 	// Handle signals
+// 	sigChan := make(chan os.Signal, 1)
+// 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+// 	// Start the pipeline
+// 	cmd := exec.Command("bash", "-c", pipeline)
+
+// 	// Capture stderr for debugging
+// 	stderr, _ := cmd.StderrPipe()
+// 	go func() {
+// 		scanner := bufio.NewScanner(stderr)
+// 		for scanner.Scan() {
+// 			line := scanner.Text()
+// 			if verbose {
+// 				fmt.Printf("GStreamer: %s\n", line)
+// 			}
+
+// 			// Check for connection
+// 			if strings.Contains(strings.ToLower(line), "connected") {
+// 				fmt.Println("SRT connection established!")
+// 				stats.mu.Lock()
+// 				stats.ConnectionStatus = "connected"
+// 				stats.mu.Unlock()
+// 			}
+
+// 			// Check for errors
+// 			if strings.Contains(strings.ToLower(line), "error") {
+// 				stats.mu.Lock()
+// 				stats.LastError = line
+// 				stats.mu.Unlock()
+// 				fmt.Printf("Error: %s\n", line)
+// 			}
+// 		}
+// 	}()
+
+// 	if err := cmd.Start(); err != nil {
+// 		fmt.Printf("Failed to start pipeline: %v\n", err)
+// 		stats.mu.Lock()
+// 		stats.ConnectionStatus = "failed"
+// 		stats.LastError = err.Error()
+// 		stats.mu.Unlock()
+// 		return
+// 	}
+
+// 	stats.mu.Lock()
+// 	stats.ConnectionStatus = "listening"
+// 	stats.mu.Unlock()
+
+// 	// Monitor for new chunks with compression analysis
+// 	go monitorChunksWithAnalysis(outputDir, filename, stats, chunksInfo,
+// 		chunkTime, maxChunks, verbose, inputWidth, inputHeight, inputFPS)
+
+// 	// Wait for completion or signal
+// 	done := make(chan error, 1)
+// 	go func() {
+// 		done <- cmd.Wait()
+// 	}()
+
+// 	select {
+// 	case err := <-done:
+// 		if err != nil {
+// 			stats.mu.Lock()
+// 			stats.LastError = fmt.Sprintf("Pipeline error: %v", err)
+// 			stats.ConnectionStatus = "error"
+// 			stats.mu.Unlock()
+// 			fmt.Printf("Pipeline exited with error: %v\n", err)
+// 		} else {
+// 			fmt.Println("\nPipeline completed normally")
+// 		}
+// 	case <-sigChan:
+// 		fmt.Println("\nStopping receiver...")
+// 		cmd.Process.Signal(syscall.SIGTERM)
+// 		<-done
+// 		stats.mu.Lock()
+// 		stats.ConnectionStatus = "stopped"
+// 		stats.mu.Unlock()
+// 		fmt.Println("Receiver stopped.")
+// 	}
+// }
+
+// func buildGStreamerPipeline(port, latency, buffer int, outputDir, filename string,
+// 	chunkTime, maxChunks int, display, verbose bool) string {
+
+// 	var pipeline strings.Builder
+
+// 	pipeline.WriteString("gst-launch-1.0 ")
+// 	if !verbose {
+// 		pipeline.WriteString("-q ")
+// 	}
+// 	pipeline.WriteString("-e ")
+
+// 	// SRT source with proper parameters - FIXED!
+// 	pipeline.WriteString(fmt.Sprintf(
+// 		"srtsrc uri=\"srt://:%d?mode=listener&latency=%d\" "+
+// 			"wait-for-connection=false "+
+// 			"! queue leaky=downstream max-size-time=%d000000 max-size-buffers=0 max-size-bytes=0 ",
+// 		port, latency, buffer,
+// 	))
+
+// 	// Demux and parse
+// 	pipeline.WriteString("! tsdemux name=demux ")
+
+// 	// For display branch
+// 	if display {
+// 		pipeline.WriteString(
+// 			"demux. ! queue ! h264parse ! " +
+// 				"avdec_h264 ! videoconvert ! " +
+// 				"videoscale ! video/x-raw,width=640,height=360 ! " +
+// 				"autovideosink sync=false async=false " +
+// 				"demux. ! queue ! ",
+// 		)
+// 	}
+
+// 	// Main processing branch
+// 	pipeline.WriteString("h264parse ! ")
+
+// 	// Split mux sink - FIXED parameters to match user request (MP4)
+// 	// User requested: location="live_chunk_%05d.mp4" muxer=mp4mux max-size-time=30000000000
+// 	chunkPattern := filepath.Join(outputDir, fmt.Sprintf("%s_%%05d.mp4", filename))
+// 	maxFiles := ""
+// 	if maxChunks > 0 {
+// 		maxFiles = fmt.Sprintf("max-files=%d ", maxChunks)
+// 	}
+
+// 	// Convert chunkTime from seconds to nanoseconds
+// 	// User requested 30000000000ns which is 30s. default chunkTime is 30.
+// 	maxSizeTime := chunkTime * 1000000000
+
+// 	pipeline.WriteString(fmt.Sprintf(
+// 		"splitmuxsink name=mux "+
+// 			"muxer=mp4mux "+
+// 			"location=%s "+
+// 			"max-size-time=%d "+
+// 			"%s"+
+// 			"async-finalize=true "+
+// 			"send-keyframe-requests=false",
+// 		chunkPattern, maxSizeTime, maxFiles,
+// 	))
+
+// 	return pipeline.String()
+// }
+
+// func monitorChunksWithAnalysis(outputDir, filename string, stats *ReceiverStats,
+// 	chunksInfo *[]ChunkInfo, chunkTime, maxChunks int, verbose bool,
+// 	inputWidth, inputHeight, inputFPS int) {
+
+// 	processedFiles := make(map[string]bool)
+// 	ticker := time.NewTicker(3 * time.Second)
+// 	defer ticker.Stop()
+
+// 	// Calculate input data per chunk
+// 	rawBitrate := calculateRawBitrate(inputWidth, inputHeight, inputFPS)
+// 	inputBytesPerChunk := (rawBitrate / 8) * chunkTime
+// 	inputMBPerChunk := float64(inputBytesPerChunk) / (1024 * 1024)
+
+// 	for range ticker.C {
+// 		// Check max chunks
+// 		if maxChunks > 0 && stats.TotalChunksReceived >= maxChunks {
+// 			continue
+// 		}
+
+// 		files, err := os.ReadDir(outputDir)
+// 		if err != nil {
+// 			continue
+// 		}
+
+// 		for _, file := range files {
+// 			if file.IsDir() {
+// 				continue
+// 			}
+
+// 			fileName := file.Name()
+// 			if !strings.HasPrefix(fileName, filename+"_") {
+// 				continue
+// 			}
+
+// 			filePath := filepath.Join(outputDir, fileName)
+
+// 			if _, processed := processedFiles[filePath]; processed {
+// 				continue
+// 			}
+
+// 			// Check if file is complete
+// 			info, err := os.Stat(filePath)
+// 			if err != nil {
+// 				continue
+// 			}
+
+// 			// Wait for file to stabilize (no writes for 2 seconds)
+// 			size1 := info.Size()
+// 			time.Sleep(2 * time.Second)
+// 			info2, _ := os.Stat(filePath)
+// 			size2 := info2.Size()
+
+// 			if size1 != size2 {
+// 				continue // Still writing
+// 			}
+
+// 			// File is complete
+// 			processedFiles[filePath] = true
+
+// 			// Analyze the chunk with compression info
+// 			chunkInfo := analyzeChunkWithCompression(filePath, chunkTime,
+// 				inputMBPerChunk, inputWidth, inputHeight, inputFPS)
+
+// 			// Update statistics
+// 			stats.mu.Lock()
+// 			stats.TotalChunksReceived++
+// 			stats.TotalBytesSaved += chunkInfo.SizeBytes
+// 			stats.TotalFramesSaved += int64(chunkInfo.Frames)
+// 			stats.TotalInputDataMB += chunkInfo.InputDataMB
+// 			stats.TotalOutputDataMB += chunkInfo.OutputDataMB
+// 			stats.CurrentChunk = filepath.Base(chunkInfo.Filename)
+// 			stats.ChunkSizeMB = chunkInfo.OutputDataMB
+// 			stats.FramesInChunk = int64(chunkInfo.Frames)
+// 			stats.Bitrate = chunkInfo.BitrateKbps
+
+// 			if chunkInfo.Duration > 0 {
+// 				stats.FPS = float64(chunkInfo.Frames) / chunkInfo.Duration
+// 			}
+
+// 			if chunkInfo.OutputDataMB > 0 {
+// 				currentRatio := chunkInfo.InputDataMB / chunkInfo.OutputDataMB
+// 				if stats.AverageCompression == 0 {
+// 					stats.AverageCompression = currentRatio
+// 				} else {
+// 					// Weighted average
+// 					stats.AverageCompression = (stats.AverageCompression*float64(stats.TotalChunksReceived-1) + currentRatio) / float64(stats.TotalChunksReceived)
+// 				}
+// 			}
+
+// 			stats.StoredFiles = append(stats.StoredFiles, filePath)
+// 			stats.mu.Unlock()
+
+// 			// Add to chunks info
+// 			*chunksInfo = append(*chunksInfo, chunkInfo)
+
+// 			// Print detailed chunk info
+// 			printChunkInfoWithCompression(chunkInfo, stats.TotalChunksReceived)
+
+// 			// Save updated chunks info
+// 			saveChunkInfo(*chunksInfo, "./chunks_info.json")
+// 		}
+// 	}
+// }
+
+// func analyzeChunkWithCompression(filePath string, expectedDuration int,
+// 	inputMBPerChunk float64, inputWidth, inputHeight, inputFPS int) ChunkInfo {
+
+// 	info, _ := os.Stat(filePath)
+// 	outputMB := float64(info.Size()) / (1024 * 1024)
+
+// 	chunkInfo := ChunkInfo{
+// 		Filename:     filepath.Base(filePath),
+// 		SizeBytes:    info.Size(),
+// 		OutputDataMB: outputMB,
+// 		InputDataMB:  inputMBPerChunk,
+// 		Created:      info.ModTime(),
+// 		FrameRate:    float64(inputFPS), // Default to input FPS
+// 	}
+
+// 	// Try to get video info using ffprobe
+// 	cmd := fmt.Sprintf(
+// 		"ffprobe -v error -select_streams v:0 "+
+// 			"-show_entries stream=width,height,r_frame_rate,nb_frames,duration,codec_name,bit_rate "+
+// 			"-of default=nokey=1:noprint_wrappers=1 \"%s\" 2>/dev/null | tr '\\n' ','",
+// 		filePath,
+// 	)
+
+// 	output, err := exec.Command("bash", "-c", cmd).Output()
+// 	if err == nil && len(output) > 0 {
+// 		result := strings.TrimSpace(string(output))
+// 		parts := strings.Split(strings.TrimSuffix(result, ","), ",")
+
+// 		if len(parts) >= 7 {
+// 			// Parse width and height
+// 			if width, err := strconv.Atoi(parts[0]); err == nil && width > 0 {
+// 				if height, err := strconv.Atoi(parts[1]); err == nil && height > 0 {
+// 					chunkInfo.Resolution = fmt.Sprintf("%dx%d", width, height)
+// 				}
+// 			}
+
+// 			// Parse FPS
+// 			if fpsStr := parts[2]; fpsStr != "" {
+// 				if strings.Contains(fpsStr, "/") {
+// 					fpsParts := strings.Split(fpsStr, "/")
+// 					if len(fpsParts) == 2 {
+// 						num, _ := strconv.Atoi(fpsParts[0])
+// 						den, _ := strconv.Atoi(fpsParts[1])
+// 						if den > 0 {
+// 							chunkInfo.FrameRate = float64(num) / float64(den)
+// 						}
+// 					}
+// 				}
+// 			}
+
+// 			// Parse frames
+// 			if framesStr := parts[3]; framesStr != "" {
+// 				if frames, err := strconv.Atoi(framesStr); err == nil {
+// 					chunkInfo.Frames = frames
+// 				}
+// 			}
+
+// 			// Parse duration
+// 			if durationStr := parts[4]; durationStr != "" {
+// 				if duration, err := strconv.ParseFloat(durationStr, 64); err == nil {
+// 					chunkInfo.Duration = duration
+// 				}
+// 			}
+
+// 			// Parse codec
+// 			if codec := parts[5]; codec != "" {
+// 				chunkInfo.Codec = codec
+// 			}
+
+// 			// Parse bitrate
+// 			if bitrateStr := parts[6]; bitrateStr != "" {
+// 				if bitrate, err := strconv.ParseFloat(bitrateStr, 64); err == nil {
+// 					chunkInfo.BitrateKbps = bitrate / 1000
+// 				}
+// 			}
+// 		}
+// 	}
+
+// 	// Fallback calculations
+// 	if chunkInfo.Frames == 0 && chunkInfo.Duration > 0 && chunkInfo.FrameRate > 0 {
+// 		chunkInfo.Frames = int(chunkInfo.Duration * chunkInfo.FrameRate)
+// 	} else if chunkInfo.Frames == 0 && expectedDuration > 0 {
+// 		chunkInfo.Frames = expectedDuration * inputFPS
+// 	}
+
+// 	if chunkInfo.Duration == 0 && expectedDuration > 0 {
+// 		chunkInfo.Duration = float64(expectedDuration)
+// 	}
+
+// 	// Calculate bitrate if not set
+// 	if chunkInfo.BitrateKbps == 0 && chunkInfo.Duration > 0 {
+// 		chunkInfo.BitrateKbps = (float64(chunkInfo.SizeBytes) * 8 / chunkInfo.Duration) / 1000
+// 	}
+
+// 	// Calculate input bitrate (raw)
+// 	rawBitrate := calculateRawBitrate(inputWidth, inputHeight, inputFPS)
+// 	chunkInfo.InputBitrateMbps = float64(rawBitrate) / 1000000
+
+// 	// Calculate compression ratio
+// 	if chunkInfo.OutputDataMB > 0 {
+// 		chunkInfo.CompressionRatio = chunkInfo.InputDataMB / chunkInfo.OutputDataMB
+// 	}
+
+// 	return chunkInfo
+// }
+
+// func printChunkInfoWithCompression(info ChunkInfo, chunkNum int) {
+// 	fps := 0.0
+// 	if info.Duration > 0 {
+// 		fps = float64(info.Frames) / info.Duration
+// 	}
+
+// 	fmt.Printf("\n=== CHUNK %d RECEIVED ===\n", chunkNum)
+// 	fmt.Printf("File:        %s\n", info.Filename)
+// 	fmt.Printf("Size:        %.2f MB\n", info.OutputDataMB)
+// 	fmt.Printf("Duration:    %.1f seconds\n", info.Duration)
+// 	fmt.Printf("Frames:      %d (%.1f fps)\n", info.Frames, fps)
+// 	fmt.Printf("Resolution:  %s\n", info.Resolution)
+// 	fmt.Printf("Codec:       %s\n", info.Codec)
+// 	fmt.Printf("Bitrate:     %.0f kbps\n", info.BitrateKbps)
+// 	fmt.Printf("\nCompression Analysis:\n")
+// 	fmt.Printf("  Input (raw):      %.1f MB\n", info.InputDataMB)
+// 	fmt.Printf("  Output:           %.1f MB\n", info.OutputDataMB)
+// 	fmt.Printf("  Compression:      %.1f:1 ratio\n", info.CompressionRatio)
+// 	if info.OutputDataMB > 0 {
+// 		spaceSaved := info.InputDataMB - info.OutputDataMB
+// 		percentSaved := (spaceSaved / info.InputDataMB) * 100
+// 		fmt.Printf("  Space Saved:      %.1f MB (%.0f%%)\n", spaceSaved, percentSaved)
+// 	}
+// }
+
+// func statsMonitor(stats *ReceiverStats, statsFile string, inputMBps float64) {
+// 	ticker := time.NewTicker(2 * time.Second)
+// 	defer ticker.Stop()
+
+// 	for range ticker.C {
+// 		printReceiverStats(stats, inputMBps)
+// 		saveReceiverStats(stats, statsFile)
+// 	}
+// }
+
+// func printReceiverStats(stats *ReceiverStats, inputMBps float64) {
+// 	stats.mu.RLock()
+// 	defer stats.mu.RUnlock()
+
+// 	elapsed := time.Since(stats.StartTime).Seconds()
+// 	expectedInputMB := inputMBps * elapsed
+
+// 	fmt.Printf("\r\033[K") // Clear line
+// 	fmt.Printf("Status: %s | Chunks: %d | Frames: %d | Output: %.1f MB | Input: %.1f MB | Ratio: %.1f:1",
+// 		stats.ConnectionStatus,
+// 		stats.TotalChunksReceived,
+// 		stats.TotalFramesSaved,
+// 		stats.TotalOutputDataMB,
+// 		expectedInputMB,
+// 		stats.AverageCompression,
+// 	)
+// }
+
+// func printFinalReceiverStats(stats *ReceiverStats, chunksInfo []ChunkInfo) {
+// 	stats.mu.RLock()
+// 	defer stats.mu.RUnlock()
+
+// 	fmt.Println("\n=== FINAL RECEIVER STATISTICS ===")
+// 	fmt.Printf("Total Duration:     %v\n", stats.TotalDuration.Round(time.Second))
+// 	fmt.Printf("Chunks Received:    %d\n", stats.TotalChunksReceived)
+// 	fmt.Printf("Total Frames:       %d\n", stats.TotalFramesSaved)
+// 	fmt.Printf("Total Input Data:   %.1f MB (raw)\n", stats.TotalInputDataMB)
+// 	fmt.Printf("Total Output Data:  %.1f MB\n", stats.TotalOutputDataMB)
+// 	fmt.Printf("Average Compression: %.1f:1\n", stats.AverageCompression)
+// 	if stats.TotalOutputDataMB > 0 {
+// 		spaceSaved := stats.TotalInputDataMB - stats.TotalOutputDataMB
+// 		percentSaved := (spaceSaved / stats.TotalInputDataMB) * 100
+// 		fmt.Printf("Total Space Saved:  %.1f MB (%.0f%%)\n", spaceSaved, percentSaved)
+// 	}
+
+// 	if len(chunksInfo) > 0 {
+// 		fmt.Println("\n=== CHUNK DETAILS ===")
+// 		for i, chunk := range chunksInfo {
+// 			compressionRatio := chunk.CompressionRatio
+// 			percentSaved := 0.0
+// 			if compressionRatio > 0 {
+// 				percentSaved = (1 - (1 / compressionRatio)) * 100
+// 			}
+// 			fmt.Printf("%2d. %s: %.1f MB, %.1f:1 ratio (%.0f%% saved)\n",
+// 				i+1, chunk.Filename,
+// 				chunk.OutputDataMB, compressionRatio, percentSaved)
+// 		}
+// 	}
+// }
+
+// func saveReceiverStats(stats *ReceiverStats, filename string) {
+// 	stats.mu.RLock()
+// 	defer stats.mu.RUnlock()
+
+// 	file, err := os.Create(filename)
+// 	if err != nil {
+// 		return
+// 	}
+// 	defer file.Close()
+
+// 	encoder := json.NewEncoder(file)
+// 	encoder.SetIndent("", "  ")
+// 	encoder.Encode(stats)
+// }
+
+// func saveChunkInfo(chunksInfo []ChunkInfo, filename string) {
+// 	file, err := os.Create(filename)
+// 	if err != nil {
+// 		return
+// 	}
+// 	defer file.Close()
+
+// 	encoder := json.NewEncoder(file)
+// 	encoder.SetIndent("", "  ")
+// 	encoder.Encode(chunksInfo)
+// }
+
+// func printReceiverHelp() {
+// 	fmt.Printf("Usage: %s [options]\n", os.Args[0])
+// 	fmt.Println("\nFixed SRT Receiver with Compression Analysis")
+// 	fmt.Println("\nOptions:")
+// 	fmt.Println("  --srt URI          SRT listen URI (default: srt://:9000)")
+// 	fmt.Println("  --latency N        SRT latency in ms (default: 120)")
+// 	fmt.Println("  --chunk-time N     Chunk duration in seconds (default: 30)")
+// 	fmt.Println("  --max-chunks N     Maximum number of chunks (0=unlimited)")
+// 	fmt.Println("  --display          Show video while receiving")
+// 	fmt.Println("  --verbose          Show verbose output")
+// 	fmt.Println("  --input-width N    Input stream width (default: 2304)")
+// 	fmt.Println("  --input-height N   Input stream height (default: 1296)")
+// 	fmt.Println("  --input-fps N      Input stream FPS (default: 15)")
+// 	fmt.Println("\nExamples:")
+// 	fmt.Println("  Basic receiver:")
+// 	fmt.Println("    ./delta_receiver --srt srt://:9000 --chunk-time 60")
+// 	fmt.Println("  With display and custom buffer:")
+// 	fmt.Println("    ./delta_receiver --display --buffer 5000 --verbose")
+// }

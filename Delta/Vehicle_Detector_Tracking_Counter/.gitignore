@@ -1,0 +1,26 @@
+# Python virtual environments and bytecode
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Tooling, test, and Streamlit local state
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.streamlit/secrets.toml
+
+# Local uploads and generated videos
+uploads/
+outputs/
+*.avi
+*.mov
+*.mkv
+*.mpeg
+*.mpg
+
+# Training checkpoint; best.pt is kept because it is the model used by the app.
+last.pt
+best.pt

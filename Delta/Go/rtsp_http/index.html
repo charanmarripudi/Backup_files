@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HLS Live Stream</title>
+</head>
+<body style="background:#111;color:white;text-align:center;">
+
+<h2>Live Stream</h2>
+
+<video id="video" controls autoplay muted width="80%"></video>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<script>
+const video = document.getElementById('video');
+
+const hls = new Hls({
+    liveSyncDuration: 1,
+    liveMaxLatencyDuration: 2,
+    maxBufferLength: 3,
+    maxMaxBufferLength: 5,
+    lowLatencyMode: true,
+    enableWorker: true,
+});
+
+hls.loadSource("http://192.168.96.72:8445/hls/playlist.m3u8");
+hls.attachMedia(video);
+
+hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    video.play().catch(() => {});
+});
+</script>
+
+</body>
+</html>

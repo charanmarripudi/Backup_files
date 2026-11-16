@@ -1,0 +1,13 @@
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt_virtual.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt_shared.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt_static.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srtsupport_virtual.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt-live-transmit.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt-file-transmit.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/srt-tunnel.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/edit_cache.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/rebuild_cache.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/list_install_components.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/install.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/install/local.dir
+/Users/algofusion/Documents/dnc_backend_v2/orchestrator/Delta/Go/srt/CMakeFiles/install/strip.dir
