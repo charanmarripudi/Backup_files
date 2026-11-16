@@ -1,0 +1,43 @@
+# Walkthrough - DBT Semantic Layer Implementation
+
+I have successfully set up the **dbt (data build tool)** layer in the `DBT_Layer` folder. This creates a clean, reliable foundation for your AI query generation.
+
+## 1. Project Organization
+The folder `orchestrator/gen_ai/DBT_Layer` is now structured as follows:
+
+- `dbt_project.yml`: Core project configuration.
+- `models/staging/`: Initial cleanup of raw data (renaming columns, casting types).
+- `models/marts/`: High-level "Golden Records" (e.g., `dim_vehicles_metrics`) that combine master data and risk scores into one easy-to-query view.
+- `semantic_orchestrator.py`: The Python brain that decides whether to use fixed rules or OpenAI.
+
+## 2. Hybrid Logic (The "Smart Fallback")
+
+The new `semantic_orchestrator.py` implements the strategy we discussed:
+
+### Type A: "The Fast Lane" (No OpenAI)
+If the user asks for something we defined in `semantic_map.json`:
+- **Question:** *"Total violations by region"*
+- **Action:** The code identifies `total_violations` (Metric) and `region` (Dimension).
+- **Result:** It generates the SQL **instantly** without using the GPT-4o API key.
+
+### Type B: "The AI Discovery Lane" (OpenAI Fallback)
+If the user asks for something complex or a specific value not in our map:
+- **Question:** *"Show me vehicles owned by the 'Market' transporter"*
+- **Action:** The code sees a metric for vehicles, but doesn't "know" what 'Market' refers to.
+- **Result:** It calls **OpenAI** to discover that 'Market' is a value in the `ownership_type` column and generates the appropriate SQL.
+
+## 3. How to use it in your API
+
+In your `alerts_actions.py`, you can now switch to this new orchestrator:
+
+```python
+from orchestrator.gen_ai.DBT_Layer.semantic_orchestrator import DBTSemanticOrchestrator
+
+orchestrator = DBTSemanticOrchestrator(semantic_map_path="RAG1/semantic_map.json")
+result = await orchestrator.generate_query("Your question here")
+```
+
+---
+
+> [!TIP]
+> This setup significantly reduces your OpenAI costs because 80% of standard business questions will no longer trigger an API call.

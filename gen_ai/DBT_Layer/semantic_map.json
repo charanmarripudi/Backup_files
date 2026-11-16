@@ -1,0 +1,481 @@
+{
+    "semantic_layer": {
+        "tables": {
+            "alerts": {
+                "description": "Central table for system alerts (Open/Close status). Use for 'Open alerts', 'Critical alerts'. CRITICAL: Join to vts_truck_master for transporter info.",
+                "primary_key": "id",
+                "alias": "ale",
+                "time_dimension": "created_at",
+                "columns": {
+                    "bu": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "description": "Business Unit"
+                    },
+                    "location_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "location",
+                            "place",
+                            "address"
+                        ]
+                    },
+                    "severity": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "description": "Severity level: Critical, High, Medium, Low"
+                    },
+                    "alert_category": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "category",
+                            "alert type",
+                            "sos",
+                            "tamper",
+                            "offline",
+                            "power"
+                        ]
+                    },
+                    "alert_status": {
+                        "type": "dimension",
+                        "subtype": "status",
+                        "description": "Status: Open, Close. Use 'Close' NOT 'Closed'."
+                    },
+                    "alert_section": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "description": "Section filter. ALWAYS use alert_section = 'VTS'."
+                    },
+                    "vehicle_number": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "vehicle",
+                            "truck",
+                            "tt number",
+                            "tl number",
+                            "vehicle number",
+                            "vehicle no",
+                            "vehicle id",
+                            "truck number",
+                            "truck no"
+                        ]
+                    },
+                    "maintenance_time": {
+                        "type": "metric",
+                        "subtype": "duration",
+                        "synonyms": [
+                            "maintenance duration",
+                            "maintenance time"
+                        ]
+                    },
+                    "mark_as_false": {
+                        "type": "dimension",
+                        "subtype": "boolean",
+                        "description": "Whether alert is a false positive"
+                    },
+                    "transporter_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "transporter",
+                            "carrier"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "dimension",
+                        "subtype": "datetime"
+                    },
+                    "action_on": {
+                        "type": "dimension",
+                        "subtype": "datetime"
+                    },
+                    "id": {
+                        "type": "dimension",
+                        "subtype": "id"
+                    }
+                }
+            },
+            "vts_alert_history": {
+                "description": "Historical log of violation EVENTS (counts). Use for trends, history. NOT for Open/Close alerts.",
+                "primary_key": "id",
+                "alias": "vah",
+                "time_dimension": "vts_end_datetime",
+                "columns": {
+                    "tl_number": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "vehicle",
+                            "truck",
+                            "tt number",
+                            "tl number",
+                            "vehicle number",
+                            "vehicle no",
+                            "vehicle id",
+                            "truck number",
+                            "truck no"
+                        ]
+                    },
+                    "vts_end_datetime": {
+                        "type": "dimension",
+                        "subtype": "datetime",
+                        "description": "Canonical end datetime"
+                    },
+                    "total_trips": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "total trips",
+                            "trip count"
+                        ]
+                    },
+                    "stoppage_violations_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "stoppage",
+                            "stoppage violations",
+                            "stoppage count"
+                        ]
+                    },
+                    "route_deviation_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "route deviation",
+                            "route deviations",
+                            "route deviation count"
+                        ]
+                    },
+                    "speed_violation_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "speeding",
+                            "speed",
+                            "speed violations",
+                            "speed violation count"
+                        ]
+                    },
+                    "main_supply_removal_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "power disconnect",
+                            "main supply removal",
+                            "power cut",
+                            "power disconnect count"
+                        ]
+                    },
+                    "night_driving_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "night driving",
+                            "night driving violations",
+                            "night driving count"
+                        ]
+                    },
+                    "no_halt_zone_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "no halt",
+                            "no halt zone",
+                            "no halt zone count"
+                        ]
+                    },
+                    "device_offline_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "device offline",
+                            "offline",
+                            "gps offline",
+                            "device offline count"
+                        ]
+                    },
+                    "device_tamper_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "device tamper",
+                            "tampering",
+                            "device tamper count"
+                        ]
+                    },
+                    "continuous_driving_count": {
+                        "type": "metric",
+                        "aggregation": "SUM",
+                        "synonyms": [
+                            "continuous driving",
+                            "fatigue driving",
+                            "continuous driving count"
+                        ]
+                    },
+                    "location_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "location",
+                            "place",
+                            "address"
+                        ]
+                    },
+                    "location_id": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "locations"
+                        ]
+                    },
+                    "zone": {
+                        "type": "dimension",
+                        "subtype": "category"
+                    },
+                    "region": {
+                        "type": "dimension",
+                        "subtype": "category"
+                    }
+                }
+            },
+            "vts_ongoing_trips": {
+                "description": "Live/Active trips. ONLY source for 'driver_name'. Active if event_end_datetime IS NULL.",
+                "primary_key": "id",
+                "alias": "vot",
+                "time_dimension": "event_start_datetime",
+                "columns": {
+                    "tt_number": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "vehicle",
+                            "truck",
+                            "tt number",
+                            "tl number",
+                            "vehicle number",
+                            "vehicle no",
+                            "vehicle id",
+                            "truck number",
+                            "truck no"
+                        ]
+                    },
+                    "driver_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "driver",
+                            "driver name"
+                        ]
+                    },
+                    "event_start_datetime": {
+                        "type": "dimension",
+                        "subtype": "datetime"
+                    },
+                    "event_end_datetime": {
+                        "type": "dimension",
+                        "subtype": "datetime"
+                    },
+                    "transporter_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "transporter",
+                            "carrier"
+                        ]
+                    },
+                    "trip_id": {
+                        "type": "dimension",
+                        "subtype": "id"
+                    }
+                }
+            },
+            "vts_truck_master": {
+                "description": "Master registry for vehicles. Use for transporter name, capacity, blacklist status.",
+                "primary_key": "truck_no",
+                "alias": "vtm",
+                "columns": {
+                    "truck_no": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "vehicle",
+                            "truck",
+                            "tt number",
+                            "tl number",
+                            "vehicle number",
+                            "vehicle no",
+                            "vehicle id",
+                            "truck number",
+                            "truck no"
+                        ]
+                    },
+                    "transporter_name": {
+                        "type": "dimension",
+                        "subtype": "category",
+                        "synonyms": [
+                            "transporter",
+                            "carrier"
+                        ]
+                    },
+                    "transporter_code": {
+                        "type": "dimension",
+                        "subtype": "id"
+                    },
+                    "capacity_of_the_truck": {
+                        "type": "metric",
+                        "aggregation": "AVG"
+                    },
+                    "whether_truck_blacklisted": {
+                        "type": "dimension",
+                        "subtype": "status",
+                        "description": "Y for blacklisted, N for not."
+                    },
+                    "region": {
+                        "type": "dimension",
+                        "subtype": "category"
+                    },
+                    "zone": {
+                        "type": "dimension",
+                        "subtype": "category"
+                    }
+                }
+            },
+            "tt_risk_score": {
+                "description": "Risk profiles per vehicle.",
+                "primary_key": "tt_number",
+                "alias": "trs",
+                "columns": {
+                    "tt_number": {
+                        "type": "dimension",
+                        "subtype": "id"
+                    },
+                    "risk_score": {
+                        "type": "metric",
+                        "aggregation": "AVG",
+                        "synonyms": [
+                            "risk",
+                            "risk score"
+                        ]
+                    },
+                    "total_trips": {
+                        "type": "metric",
+                        "aggregation": "SUM"
+                    }
+                }
+            },
+            "vts_tripauditmaster": {
+                "description": "Audit trail for trips, especially emlock and swipe events.",
+                "primary_key": "id",
+                "alias": "tam",
+                "time_dimension": "createdat",
+                "columns": {
+                    "trucknumber": {
+                        "type": "dimension",
+                        "subtype": "id",
+                        "synonyms": [
+                            "vehicle",
+                            "truck",
+                            "tt number",
+                            "tl number",
+                            "vehicle number",
+                            "vehicle no",
+                            "vehicle id",
+                            "truck number",
+                            "truck no"
+                        ]
+                    },
+                    "swipeinl1": {
+                        "type": "dimension",
+                        "subtype": "boolean"
+                    },
+                    "swipeoutl1": {
+                        "type": "dimension",
+                        "subtype": "boolean"
+                    },
+                    "isemlocktrip": {
+                        "type": "dimension",
+                        "subtype": "boolean"
+                    },
+                    "createdat": {
+                        "type": "dimension",
+                        "subtype": "datetime"
+                    }
+                }
+            }
+        },
+        "business_concepts": {
+            "risky": {
+                "logic": "risk_score > 70",
+                "table": "tt_risk_score",
+                "synonyms": [
+                    "danger",
+                    "high risk",
+                    "risky"
+                ]
+            },
+            "low risk": {
+                "logic": "risk_score < 30",
+                "table": "tt_risk_score",
+                "synonyms": [
+                    "safe",
+                    "consistent low risk",
+                    "low risk"
+                ]
+            },
+            "total violations": {
+                "logic": "SUM(stoppage_violations_count + route_deviation_count + speed_violation_count + main_supply_removal_count + night_driving_count + continuous_driving_count + no_halt_zone_count + device_offline_count)",
+                "table": "vts_alert_history",
+                "synonyms": [
+                    "total violations",
+                    "maximum violations",
+                    "violations",
+                    "total_violations_count",
+                    "all violations",
+                    "violation count"
+                ]
+            },
+            "no action": {
+                "logic": "action_on IS NULL",
+                "table": "alerts",
+                "synonyms": [
+                    "no action",
+                    "untouched",
+                    "pending action"
+                ]
+            },
+            "blacklisted": {
+                "logic": "whether_truck_blacklisted = 'Y'",
+                "table": "vts_truck_master",
+                "synonyms": [
+                    "blacklisted",
+                    "danger list"
+                ]
+            },
+            "market": {
+                "logic": "tt_type = 'Market'",
+                "table": "vts_ongoing_trips",
+                "synonyms": [
+                    "market"
+                ]
+            },
+            "swipe failure": {
+                "logic": "swipeoutl1 = 'false' OR swipeoutl2 = 'false'",
+                "table": "vts_tripauditmaster",
+                "synonyms": [
+                    "swipe failure",
+                    "swipe-out failure"
+                ]
+            }
+        },
+        "business_rules": {
+            "global_filters": {
+                "alerts": "alert_section = 'VTS'",
+                "vts_alert_history": "(violation_type IS NOT NULL AND array_length(violation_type, 1) > 0)"
+            }
+        }
+    }
+}

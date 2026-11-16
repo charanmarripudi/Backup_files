@@ -1,0 +1,12 @@
+dnc_db:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "140.245.238.142"
+      user: "ceg_user"
+      pass: "UUMrftkiJLPM50jD"
+      port: 5432
+      dbname: "hpcl_ceg"
+      schema: public # Materializing directly into public as per staging.yml
+      threads: 4

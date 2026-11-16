@@ -1,0 +1,2094 @@
+[0m15:39:14.725349 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10505fb00>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106cae840>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106cae7b0>]}
+
+
+============================== 15:39:14.727788 | 6d64a9a3-a692-4635-9c69-bec054b86cda ==============================
+[0m15:39:14.727788 [info ] [MainThread]: Running with dbt=1.11.2
+[0m15:39:14.728055 [debug] [MainThread]: running dbt with arguments {'indirect_selection': 'eager', 'warn_error': 'None', 'empty': 'None', 'static_parser': 'True', 'debug': 'False', 'send_anonymous_usage_stats': 'True', 'cache_selected_only': 'False', 'write_json': 'True', 'target_path': 'None', 'use_experimental_parser': 'False', 'fail_fast': 'False', 'log_cache_events': 'False', 'partial_parse': 'True', 'quiet': 'False', 'version_check': 'True', 'profiles_dir': '.', 'no_print': 'None', 'log_format': 'default', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'log_path': '/Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/logs', 'use_colors': 'True', 'invocation_command': 'dbt debug --profiles-dir .', 'printer_width': '80', 'introspect': 'True'}
+[0m15:39:14.737288 [info ] [MainThread]: dbt version: 1.11.2
+[0m15:39:14.737461 [info ] [MainThread]: python version: 3.12.8
+[0m15:39:14.737574 [info ] [MainThread]: python path: /Users/algofusion/hpcl_env/bin/python3.12
+[0m15:39:14.737707 [info ] [MainThread]: os info: macOS-15.5-arm64-arm-64bit
+[0m15:39:14.770484 [info ] [MainThread]: Using profiles dir at .
+[0m15:39:14.770708 [info ] [MainThread]: Using profiles.yml file at ./profiles.yml
+[0m15:39:14.770821 [info ] [MainThread]: Using dbt_project.yml file at /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/dbt_project.yml
+[0m15:39:14.771165 [info ] [MainThread]: adapter type: postgres
+[0m15:39:14.771268 [info ] [MainThread]: adapter version: 1.10.0
+[0m15:39:14.813965 [info ] [MainThread]: Configuration:
+[0m15:39:14.814169 [info ] [MainThread]:   profiles.yml file [[32mOK found and valid[0m]
+[0m15:39:14.814285 [info ] [MainThread]:   dbt_project.yml file [[32mOK found and valid[0m]
+[0m15:39:14.814380 [info ] [MainThread]: Required dependencies:
+[0m15:39:14.814539 [debug] [MainThread]: Executing "git --help"
+[0m15:39:14.833682 [debug] [MainThread]: STDOUT: "b"usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]\n           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]\n           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]\n           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]\n           [--super-prefix=<path>] [--config-env=<name>=<envvar>]\n           <command> [<args>]\n\nThese are common Git commands used in various situations:\n\nstart a working area (see also: git help tutorial)\n   clone     Clone a repository into a new directory\n   init      Create an empty Git repository or reinitialize an existing one\n\nwork on the current change (see also: git help everyday)\n   add       Add file contents to the index\n   mv        Move or rename a file, a directory, or a symlink\n   restore   Restore working tree files\n   rm        Remove files from the working tree and from the index\n\nexamine the history and state (see also: git help revisions)\n   bisect    Use binary search to find the commit that introduced a bug\n   diff      Show changes between commits, commit and working tree, etc\n   grep      Print lines matching a pattern\n   log       Show commit logs\n   show      Show various types of objects\n   status    Show the working tree status\n\ngrow, mark and tweak your common history\n   branch    List, create, or delete branches\n   commit    Record changes to the repository\n   merge     Join two or more development histories together\n   rebase    Reapply commits on top of another base tip\n   reset     Reset current HEAD to the specified state\n   switch    Switch branches\n   tag       Create, list, delete or verify a tag object signed with GPG\n\ncollaborate (see also: git help workflows)\n   fetch     Download objects and refs from another repository\n   pull      Fetch from and integrate with another repository or a local branch\n   push      Update remote refs along with associated objects\n\n'git help -a' and 'git help -g' list available subcommands and some\nconcept guides. See 'git help <command>' or 'git help <concept>'\nto read about a specific subcommand or concept.\nSee 'git help git' for an overview of the system.\n""
+[0m15:39:14.834064 [debug] [MainThread]: STDERR: "b''"
+[0m15:39:14.834192 [info ] [MainThread]:  - git [[32mOK found[0m]
+
+[0m15:39:14.834324 [info ] [MainThread]: Connection:
+[0m15:39:14.834443 [info ] [MainThread]:   host: 140.245.238.142
+[0m15:39:14.834543 [info ] [MainThread]:   port: 5432
+[0m15:39:14.834633 [info ] [MainThread]:   user: ceg_user
+[0m15:39:14.834723 [info ] [MainThread]:   database: hpcl_ceg
+[0m15:39:14.834810 [info ] [MainThread]:   schema: public
+[0m15:39:14.834897 [info ] [MainThread]:   connect_timeout: 10
+[0m15:39:14.834989 [info ] [MainThread]:   role: None
+[0m15:39:14.835073 [info ] [MainThread]:   search_path: None
+[0m15:39:14.835162 [info ] [MainThread]:   keepalives_idle: 0
+[0m15:39:14.835247 [info ] [MainThread]:   sslmode: None
+[0m15:39:14.835334 [info ] [MainThread]:   sslcert: None
+[0m15:39:14.835424 [info ] [MainThread]:   sslkey: None
+[0m15:39:14.835512 [info ] [MainThread]:   sslrootcert: None
+[0m15:39:14.835597 [info ] [MainThread]:   application_name: dbt
+[0m15:39:14.835684 [info ] [MainThread]:   retries: 1
+[0m15:39:14.835950 [info ] [MainThread]: Registered adapter: postgres=1.10.0
+[0m15:39:14.870849 [debug] [MainThread]: Acquiring new postgres connection 'debug'
+[0m15:39:14.902745 [debug] [MainThread]: Using postgres connection "debug"
+[0m15:39:14.902937 [debug] [MainThread]: On debug: select 1 as id
+[0m15:39:14.903044 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m15:39:15.160288 [debug] [MainThread]: SQL status: SELECT 1 in 0.257 seconds
+[0m15:39:15.161104 [debug] [MainThread]: On debug: Close
+[0m15:39:15.161470 [info ] [MainThread]:   Connection test: [[32mOK connection ok[0m]
+
+[0m15:39:15.161708 [info ] [MainThread]: [32mAll checks passed![0m
+[0m15:39:15.221454 [debug] [MainThread]: Resource report: {"command_name": "debug", "command_success": true, "command_wall_clock_time": 0.5328302, "process_in_blocks": "0", "process_kernel_time": 0.133386, "process_mem_max_rss": "125517824", "process_out_blocks": "0", "process_user_time": 0.640914}
+[0m15:39:15.221782 [debug] [MainThread]: Command `dbt debug` succeeded at 15:39:15.221732 after 0.53 seconds
+[0m15:39:15.221951 [debug] [MainThread]: Connection 'debug' was properly closed.
+[0m15:39:15.222111 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1076235f0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x108053800>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106fa60c0>]}
+[0m15:39:15.222281 [debug] [MainThread]: Flushing usage events
+[0m15:39:16.530102 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m15:39:17.225958 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10a7c9ac0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b1983e0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b198110>]}
+
+
+============================== 15:39:17.227653 | a3054f81-d712-48e6-9b1e-0fdad3fddea5 ==============================
+[0m15:39:17.227653 [info ] [MainThread]: Running with dbt=1.11.2
+[0m15:39:17.227901 [debug] [MainThread]: running dbt with arguments {'printer_width': '80', 'debug': 'False', 'warn_error': 'None', 'fail_fast': 'False', 'log_format': 'default', 'invocation_command': 'dbt run --profiles-dir .', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'empty': 'False', 'version_check': 'True', 'cache_selected_only': 'False', 'static_parser': 'True', 'introspect': 'True', 'log_path': '/Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/logs', 'indirect_selection': 'eager', 'partial_parse': 'True', 'use_colors': 'True', 'no_print': 'None', 'target_path': 'None', 'quiet': 'False', 'log_cache_events': 'False', 'send_anonymous_usage_stats': 'True', 'use_experimental_parser': 'False', 'write_json': 'True', 'profiles_dir': '.'}
+[0m15:39:17.346208 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106cf52e0>]}
+[0m15:39:17.373495 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10a7640e0>]}
+[0m15:39:17.373860 [info ] [MainThread]: Registered adapter: postgres=1.10.0
+[0m15:39:17.408929 [debug] [MainThread]: checksum: 3d40d8bbe1bef07db1c24822f2dbfff8bc07f2a48ed4fe2658a40653aec0b54b, vars: {}, profile: , target: , version: 1.11.2
+[0m15:39:17.409275 [info ] [MainThread]: Unable to do partial parsing because saved manifest not found. Starting full parse.
+[0m15:39:17.409434 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'partial_parser', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10bb00860>]}
+[0m15:39:17.825282 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10c9bba70>]}
+[0m15:39:17.849122 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:39:17.850539 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:39:17.856780 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10c9feb40>]}
+[0m15:39:17.856953 [info ] [MainThread]: Found 7 models, 8 sources, 464 macros
+[0m15:39:17.857078 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10c941880>]}
+[0m15:39:17.857797 [info ] [MainThread]: 
+[0m15:39:17.857923 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m15:39:17.858024 [info ] [MainThread]: 
+[0m15:39:17.858190 [debug] [MainThread]: Acquiring new postgres connection 'master'
+[0m15:39:17.859629 [debug] [ThreadPool]: Acquiring new postgres connection 'list_hpcl_ceg'
+[0m15:39:17.873951 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg"
+[0m15:39:17.874108 [debug] [ThreadPool]: On list_hpcl_ceg: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg"} */
+
+    select distinct nspname from pg_namespace
+  
+[0m15:39:17.874213 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m15:39:18.043876 [debug] [ThreadPool]: SQL status: SELECT 62 in 0.170 seconds
+[0m15:39:18.044568 [debug] [ThreadPool]: On list_hpcl_ceg: Close
+[0m15:39:18.045282 [debug] [ThreadPool]: Acquiring new postgres connection 'list_hpcl_ceg_public'
+[0m15:39:18.047618 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg_public"
+[0m15:39:18.047806 [debug] [ThreadPool]: On list_hpcl_ceg_public: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg_public"} */
+select
+      'hpcl_ceg' as database,
+      tablename as name,
+      schemaname as schema,
+      'table' as type
+    from pg_tables
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      viewname as name,
+      schemaname as schema,
+      'view' as type
+    from pg_views
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      matviewname as name,
+      schemaname as schema,
+      'materialized_view' as type
+    from pg_matviews
+    where schemaname ilike 'public'
+  
+[0m15:39:18.047938 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m15:39:18.242864 [debug] [ThreadPool]: SQL status: SELECT 296 in 0.195 seconds
+[0m15:39:18.248821 [debug] [ThreadPool]: On list_hpcl_ceg_public: ROLLBACK
+[0m15:39:18.267418 [debug] [ThreadPool]: On list_hpcl_ceg_public: Close
+[0m15:39:18.286394 [debug] [MainThread]: Using postgres connection "master"
+[0m15:39:18.286624 [debug] [MainThread]: On master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "master"} */
+select distinct
+        dependent_namespace.nspname as dependent_schema,
+        dependent_class.relname as dependent_name,
+        referenced_namespace.nspname as referenced_schema,
+        referenced_class.relname as referenced_name
+
+    -- Query for views: views are entries in pg_class with an entry in pg_rewrite, but we avoid
+    -- a seq scan on pg_rewrite by leveraging the fact there is an "internal" row in pg_depend for
+    -- the view...
+    from pg_class as dependent_class
+    join pg_namespace as dependent_namespace on dependent_namespace.oid = dependent_class.relnamespace
+    join pg_depend as dependent_depend on dependent_depend.refobjid = dependent_class.oid
+        and dependent_depend.classid = 'pg_rewrite'::regclass
+        and dependent_depend.refclassid = 'pg_class'::regclass
+        and dependent_depend.deptype = 'i'
+
+    -- ... and via pg_depend (that has a row per column, hence the need for "distinct" above, and
+    -- making sure to exclude the internal row to avoid a view appearing to depend on itself)...
+    join pg_depend as joining_depend on joining_depend.objid = dependent_depend.objid
+        and joining_depend.classid = 'pg_rewrite'::regclass
+        and joining_depend.refclassid = 'pg_class'::regclass
+        and joining_depend.refobjid != dependent_depend.refobjid
+
+    -- ... we can find the tables they query from in pg_class, but excluding system tables. Note we
+    -- don't need need to exclude _dependent_ system tables, because they only query from other
+    -- system tables, and so are automatically excluded by excluding _referenced_ system tables
+    join pg_class as referenced_class on referenced_class.oid = joining_depend.refobjid
+    join pg_namespace as referenced_namespace on referenced_namespace.oid = referenced_class.relnamespace
+        and referenced_namespace.nspname != 'information_schema'
+        and referenced_namespace.nspname not like 'pg\_%'
+
+    order by
+        dependent_schema, dependent_name, referenced_schema, referenced_name;
+[0m15:39:18.286808 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m15:39:18.465930 [debug] [MainThread]: SQL status: SELECT 3 in 0.179 seconds
+[0m15:39:18.467166 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10bb2b110>]}
+[0m15:39:18.467451 [debug] [MainThread]: On master: ROLLBACK
+[0m15:39:18.483455 [debug] [MainThread]: On master: COMMIT
+[0m15:39:18.483664 [debug] [MainThread]: Using postgres connection "master"
+[0m15:39:18.483817 [debug] [MainThread]: On master: COMMIT
+[0m15:39:18.529824 [debug] [MainThread]: SQL status: COMMIT in 0.046 seconds
+[0m15:39:18.532436 [debug] [MainThread]: On master: Close
+[0m15:39:18.535797 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:39:18.536144 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:39:18.536388 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:39:18.536986 [debug] [Thread-4 (]: Began running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:39:18.536737 [info ] [Thread-1 (]: 1 of 7 START sql view model public.stg_vts_ongoing_trips ....................... [RUN]
+[0m15:39:18.537405 [info ] [Thread-2 (]: 2 of 7 START sql view model public.stg_vts_truck_master ........................ [RUN]
+[0m15:39:18.537680 [info ] [Thread-3 (]: 3 of 7 START sql view model public.stg_vts_vehicle_risk ........................ [RUN]
+[0m15:39:18.538311 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly list_hpcl_ceg, now model.dnc_semantic_layer.stg_vts_ongoing_trips)
+[0m15:39:18.538015 [info ] [Thread-4 (]: 4 of 7 START sql view model public.stg_vts_violation_history ................... [RUN]
+[0m15:39:18.538581 [debug] [Thread-2 (]: Re-using an available connection from the pool (formerly list_hpcl_ceg_public, now model.dnc_semantic_layer.stg_vts_truck_master)
+[0m15:39:18.539023 [debug] [Thread-3 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_vehicle_risk'
+[0m15:39:18.539242 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:39:18.539504 [debug] [Thread-4 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_violation_history'
+[0m15:39:18.539707 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:39:18.539896 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:39:18.544707 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.544947 [debug] [Thread-4 (]: Began compiling node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:39:18.546400 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.547769 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:39:18.549365 [debug] [Thread-4 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.550004 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:39:18.550212 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:39:18.550403 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:39:18.556717 [debug] [Thread-4 (]: Began executing node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:39:18.571949 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.572311 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.575137 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:39:18.577735 [debug] [Thread-4 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.578333 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.578517 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.578668 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Ongoing Trips
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_ongoing_trips"
+)
+
+SELECT
+    id AS trip_pk,
+    trip_id,
+    tt_number AS vehicle_id,
+    driver_name,
+    transporter_name,
+    invoice_no,
+    vehicle_location AS current_location,
+    violation_type AS current_violation_code,
+    event_start_datetime AS trip_started_at,
+    event_end_datetime AS trip_ended_at,
+    region,
+    zone,
+    bu,
+    sap_id
+FROM raw
+  );
+[0m15:39:18.578819 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.578945 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:39:18.579084 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned and Renamed Truck Master
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_truck_master"
+)
+
+SELECT
+    truck_no AS vehicle_id,
+    transporter_name,
+    transporter_code,
+    capacity_of_the_truck AS capacity,
+    COALESCE(whether_truck_blacklisted, 'N') = 'Y' AS is_blacklisted,
+    ownership_type,
+    region,
+    zone,
+    engine_no,
+    chassis_no,
+    last_changed_date AS last_updated_at
+FROM raw
+  );
+[0m15:39:18.579248 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:39:18.579393 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Violation History
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_alert_history"
+)
+
+SELECT
+    id AS event_id,
+    tl_number AS vehicle_id,
+    vts_end_datetime AS event_at,
+    total_trips,
+    -- Pre-calculate the total violations metric
+    (COALESCE(stoppage_violations_count, 0) + 
+     COALESCE(route_deviation_count, 0) + 
+     COALESCE(speed_violation_count, 0) + 
+     COALESCE(night_driving_count, 0) + 
+     COALESCE(device_offline_count, 0) + 
+     COALESCE(device_tamper_count, 0) + 
+     COALESCE(continuous_driving_count, 0) + 
+     COALESCE(no_halt_zone_count, 0) + 
+     COALESCE(main_supply_removal_count, 0)) AS total_violations_count,
+    stoppage_violations_count,
+    route_deviation_count,
+    speed_violation_count,
+    night_driving_count,
+    violation_type AS violation_tags, -- original array
+    region,
+    bu,
+    zone,
+    location_name
+FROM raw
+  );
+[0m15:39:18.579550 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp"
+    
+    
+  as (
+    -- Snapshot Vehicle Risk
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."tt_risk_score"
+)
+
+SELECT
+    tt_number AS vehicle_id,
+    risk_score AS current_risk_score,
+    transporter_name,
+    transporter_code,
+    total_trips AS lifetime_trips,
+    device_removed AS risk_device_removed,
+    power_disconnect AS risk_power_disconnect,
+    route_deviation AS risk_route_deviation,
+    stoppage_violation AS risk_stoppage_violation
+FROM raw
+  );
+[0m15:39:18.579681 [debug] [Thread-2 (]: Opening a new connection, currently in state closed
+[0m15:39:18.579866 [debug] [Thread-4 (]: Opening a new connection, currently in state init
+[0m15:39:18.579998 [debug] [Thread-3 (]: Opening a new connection, currently in state init
+[0m15:39:18.753341 [debug] [Thread-1 (]: SQL status: CREATE VIEW in 0.174 seconds
+[0m15:39:18.757516 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.757814 [debug] [Thread-3 (]: Postgres adapter: Postgres error: column "device_removed" does not exist
+LINE 18:     device_removed AS risk_device_removed,
+             ^
+
+[0m15:39:18.758061 [debug] [Thread-2 (]: SQL status: CREATE VIEW in 0.178 seconds
+[0m15:39:18.758263 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp" rename to "stg_vts_ongoing_trips"
+[0m15:39:18.758448 [debug] [Thread-4 (]: SQL status: CREATE VIEW in 0.179 seconds
+[0m15:39:18.758680 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: ROLLBACK
+[0m15:39:18.760372 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.762020 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.762250 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp" rename to "stg_vts_truck_master"
+[0m15:39:18.762427 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+alter table "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp" rename to "stg_vts_violation_history"
+[0m15:39:18.773784 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.013 seconds
+[0m15:39:18.781320 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:39:18.781522 [debug] [Thread-4 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:39:18.781741 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: Close
+[0m15:39:18.781892 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:39:18.782051 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.782715 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:39:18.783463 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:39:18.784123 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:39:18.784315 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.784493 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.784691 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:39:18.784904 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:39:18.789197 [debug] [Thread-3 (]: Database Error in model stg_vts_vehicle_risk (models/staging/stg_vts_vehicle_risk.sql)
+  column "device_removed" does not exist
+  LINE 18:     device_removed AS risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_vehicle_risk.sql
+[0m15:39:18.790129 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10cffe0c0>]}
+[0m15:39:18.790424 [error] [Thread-3 (]: 3 of 7 ERROR creating sql view model public.stg_vts_vehicle_risk ............... [[31mERROR[0m in 0.25s]
+[0m15:39:18.790683 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:39:18.790910 [debug] [Thread-7 (]: Marking all children of 'model.dnc_semantic_layer.stg_vts_vehicle_risk' to be skipped because of status 'error'.  Reason: Database Error in model stg_vts_vehicle_risk (models/staging/stg_vts_vehicle_risk.sql)
+  column "device_removed" does not exist
+  LINE 18:     device_removed AS risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_vehicle_risk.sql.
+[0m15:39:18.801998 [debug] [Thread-1 (]: SQL status: COMMIT in 0.017 seconds
+[0m15:39:18.805131 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup"
+[0m15:39:18.805318 [debug] [Thread-2 (]: SQL status: COMMIT in 0.020 seconds
+[0m15:39:18.807673 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:39:18.807828 [debug] [Thread-4 (]: SQL status: COMMIT in 0.023 seconds
+[0m15:39:18.808834 [debug] [Thread-2 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup"
+[0m15:39:18.808993 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup" cascade
+[0m15:39:18.810563 [debug] [Thread-4 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup"
+[0m15:39:18.810858 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:39:18.811190 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:39:18.811349 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup" cascade
+[0m15:39:18.811495 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup" cascade
+[0m15:39:18.826522 [debug] [Thread-1 (]: SQL status: DROP VIEW in 0.016 seconds
+[0m15:39:18.827583 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: Close
+[0m15:39:18.827910 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106cf4530>]}
+[0m15:39:18.828173 [info ] [Thread-1 (]: 1 of 7 OK created sql view model public.stg_vts_ongoing_trips .................. [[32mCREATE VIEW[0m in 0.29s]
+[0m15:39:18.828408 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:39:18.829529 [debug] [Thread-4 (]: SQL status: DROP VIEW in 0.018 seconds
+[0m15:39:18.829699 [debug] [Thread-2 (]: SQL status: DROP VIEW in 0.018 seconds
+[0m15:39:18.830218 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: Close
+[0m15:39:18.830682 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: Close
+[0m15:39:18.830931 [debug] [Thread-4 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10da8a3c0>]}
+[0m15:39:18.831129 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10da8a1b0>]}
+[0m15:39:18.831385 [info ] [Thread-4 (]: 4 of 7 OK created sql view model public.stg_vts_violation_history .............. [[32mCREATE VIEW[0m in 0.29s]
+[0m15:39:18.831645 [info ] [Thread-2 (]: 2 of 7 OK created sql view model public.stg_vts_truck_master ................... [[32mCREATE VIEW[0m in 0.29s]
+[0m15:39:18.831877 [debug] [Thread-4 (]: Finished running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:39:18.832071 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:39:18.832299 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:39:18.832549 [info ] [Thread-3 (]: 5 of 7 START sql table model public.fct_violation_trends ....................... [RUN]
+[0m15:39:18.832736 [debug] [Thread-4 (]: Began running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:39:18.832890 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:39:18.833052 [debug] [Thread-3 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_vehicle_risk, now model.dnc_semantic_layer.fct_violation_trends)
+[0m15:39:18.833258 [info ] [Thread-4 (]: 6 of 7 START sql table model public.dim_transporters_metrics ................... [RUN]
+[0m15:39:18.833449 [info ] [Thread-2 (]: 7 of 7 SKIP relation public.dim_vehicles_metrics ............................... [[33mSKIP[0m]
+[0m15:39:18.833688 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.fct_violation_trends
+[0m15:39:18.833847 [debug] [Thread-4 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_violation_history, now model.dnc_semantic_layer.dim_transporters_metrics)
+[0m15:39:18.834008 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:39:18.835251 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:18.835397 [debug] [Thread-4 (]: Began compiling node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:39:18.836802 [debug] [Thread-4 (]: Writing injected SQL for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:39:18.837201 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.fct_violation_trends
+[0m15:39:18.837342 [debug] [Thread-4 (]: Began executing node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:39:18.847768 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:18.850503 [debug] [Thread-4 (]: Writing runtime sql for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:39:18.850915 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:39:18.851073 [debug] [Thread-4 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."dim_transporters_metrics__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- Transporter Performance Mart
+WITH transporter_master AS (
+    SELECT DISTINCT transporter_code, transporter_name
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+),
+
+fleet_risk AS (
+    SELECT * FROM "hpcl_ceg"."public"."transporter_risk_score"
+),
+
+violation_totals AS (
+    SELECT 
+        v.transporter_name,
+        SUM(total_violations_count) AS fleet_violations,
+        COUNT(DISTINCT vehicle_id) AS vehicle_count
+    FROM "hpcl_ceg"."public"."stg_vts_violation_history" v
+    GROUP BY 1
+)
+
+SELECT
+    tm.transporter_name,
+    tm.transporter_code,
+    fr.risk_score AS current_fleet_risk,
+    vt.fleet_violations,
+    vt.vehicle_count,
+    ROUND(CAST(vt.fleet_violations AS NUMERIC) / NULLIF(vt.vehicle_count, 0), 2) AS violations_per_vehicle
+FROM transporter_master tm
+LEFT JOIN fleet_risk fr ON tm.transporter_code = fr.transporter_code
+LEFT JOIN violation_totals vt ON tm.transporter_name = vt.transporter_name
+  );
+  
+[0m15:39:18.851233 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:18.851358 [debug] [Thread-4 (]: Opening a new connection, currently in state closed
+[0m15:39:18.851493 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- AI ready Violation Trends
+SELECT
+    vehicle_id,
+    region,
+    zone,
+    event_at::DATE AS violation_date,
+    total_violations_count,
+    stoppage_violations_count,
+    route_deviation_count,
+    speed_violation_count,
+    night_driving_count
+FROM "hpcl_ceg"."public"."stg_vts_violation_history"
+  );
+  
+[0m15:39:18.851693 [debug] [Thread-3 (]: Opening a new connection, currently in state closed
+[0m15:39:19.101315 [debug] [Thread-4 (]: Postgres adapter: Postgres error: column v.transporter_name does not exist
+LINE 24:         v.transporter_name,
+                 ^
+
+[0m15:39:19.101718 [debug] [Thread-4 (]: On model.dnc_semantic_layer.dim_transporters_metrics: ROLLBACK
+[0m15:39:19.117850 [debug] [Thread-4 (]: On model.dnc_semantic_layer.dim_transporters_metrics: Close
+[0m15:39:19.119783 [debug] [Thread-4 (]: Database Error in model dim_transporters_metrics (models/marts/dim_transporters_metrics.sql)
+  column v.transporter_name does not exist
+  LINE 24:         v.transporter_name,
+                   ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_transporters_metrics.sql
+[0m15:39:19.120134 [debug] [Thread-4 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10dc6bb30>]}
+[0m15:39:19.120649 [error] [Thread-4 (]: 6 of 7 ERROR creating sql table model public.dim_transporters_metrics .......... [[31mERROR[0m in 0.29s]
+[0m15:39:19.121126 [debug] [Thread-4 (]: Finished running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:39:19.121462 [debug] [Thread-7 (]: Marking all children of 'model.dnc_semantic_layer.dim_transporters_metrics' to be skipped because of status 'error'.  Reason: Database Error in model dim_transporters_metrics (models/marts/dim_transporters_metrics.sql)
+  column v.transporter_name does not exist
+  LINE 24:         v.transporter_name,
+                   ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_transporters_metrics.sql.
+[0m15:39:22.000965 [debug] [Thread-3 (]: SQL status: SELECT 1658003 in 3.149 seconds
+[0m15:39:22.011358 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:22.011800 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+alter table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp" rename to "fct_violation_trends"
+[0m15:39:22.028615 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.016 seconds
+[0m15:39:22.030148 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:39:22.030484 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:22.030748 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:39:22.070889 [debug] [Thread-3 (]: SQL status: COMMIT in 0.040 seconds
+[0m15:39:22.073406 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."fct_violation_trends__dbt_backup"
+[0m15:39:22.076495 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:39:22.076886 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+drop table if exists "hpcl_ceg"."public"."fct_violation_trends__dbt_backup" cascade
+[0m15:39:22.092105 [debug] [Thread-3 (]: SQL status: DROP TABLE in 0.015 seconds
+[0m15:39:22.093316 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: Close
+[0m15:39:22.094021 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': 'a3054f81-d712-48e6-9b1e-0fdad3fddea5', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10da314f0>]}
+[0m15:39:22.094714 [info ] [Thread-3 (]: 5 of 7 OK created sql table model public.fct_violation_trends .................. [[32mSELECT 1658003[0m in 3.26s]
+[0m15:39:22.095172 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:39:22.096419 [debug] [MainThread]: On master: COMMIT
+[0m15:39:22.096702 [debug] [MainThread]: Using postgres connection "master"
+[0m15:39:22.096932 [debug] [MainThread]: On master: COMMIT
+[0m15:39:22.097127 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m15:39:22.242464 [debug] [MainThread]: SQL status: COMMIT in 0.145 seconds
+[0m15:39:22.242791 [debug] [MainThread]: On master: Close
+[0m15:39:22.243153 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m15:39:22.243325 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_ongoing_trips' was properly closed.
+[0m15:39:22.243461 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_truck_master' was properly closed.
+[0m15:39:22.243594 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.fct_violation_trends' was properly closed.
+[0m15:39:22.243721 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.dim_transporters_metrics' was properly closed.
+[0m15:39:22.243933 [info ] [MainThread]: 
+[0m15:39:22.244127 [info ] [MainThread]: Finished running 3 table models, 4 view models in 0 hours 0 minutes and 4.39 seconds (4.39s).
+[0m15:39:22.244797 [debug] [MainThread]: Command end result
+[0m15:39:22.258968 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:39:22.259978 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:39:22.262654 [debug] [MainThread]: Wrote artifact RunExecutionResult to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/run_results.json
+[0m15:39:22.262804 [info ] [MainThread]: 
+[0m15:39:22.262962 [info ] [MainThread]: [31mCompleted with 2 errors, 0 partial successes, and 0 warnings:[0m
+[0m15:39:22.263085 [info ] [MainThread]: 
+[0m15:39:22.263252 [error] [MainThread]: [31mFailure in model stg_vts_vehicle_risk (models/staging/stg_vts_vehicle_risk.sql)[0m
+[0m15:39:22.263401 [error] [MainThread]:   Database Error in model stg_vts_vehicle_risk (models/staging/stg_vts_vehicle_risk.sql)
+  column "device_removed" does not exist
+  LINE 18:     device_removed AS risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_vehicle_risk.sql
+[0m15:39:22.263517 [info ] [MainThread]: 
+[0m15:39:22.263650 [info ] [MainThread]:   compiled code at target/compiled/dnc_semantic_layer/models/staging/stg_vts_vehicle_risk.sql
+[0m15:39:22.263763 [info ] [MainThread]: 
+[0m15:39:22.263895 [error] [MainThread]: [31mFailure in model dim_transporters_metrics (models/marts/dim_transporters_metrics.sql)[0m
+[0m15:39:22.264033 [error] [MainThread]:   Database Error in model dim_transporters_metrics (models/marts/dim_transporters_metrics.sql)
+  column v.transporter_name does not exist
+  LINE 24:         v.transporter_name,
+                   ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_transporters_metrics.sql
+[0m15:39:22.264145 [info ] [MainThread]: 
+[0m15:39:22.264275 [info ] [MainThread]:   compiled code at target/compiled/dnc_semantic_layer/models/marts/dim_transporters_metrics.sql
+[0m15:39:22.264390 [info ] [MainThread]: 
+[0m15:39:22.264520 [info ] [MainThread]: Done. PASS=4 WARN=0 ERROR=2 SKIP=1 NO-OP=0 TOTAL=7
+[0m15:39:22.265895 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": false, "command_wall_clock_time": 5.071432, "process_in_blocks": "0", "process_kernel_time": 0.135189, "process_mem_max_rss": "143212544", "process_out_blocks": "0", "process_user_time": 1.299258}
+[0m15:39:22.266126 [debug] [MainThread]: Command `dbt run` failed at 15:39:22.266091 after 5.07 seconds
+[0m15:39:22.266292 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b198410>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10c9ec050>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10cadc800>]}
+[0m15:39:22.266441 [debug] [MainThread]: Flushing usage events
+[0m15:39:23.425785 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m15:41:04.120408 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105824200>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105f983b0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105f980e0>]}
+
+
+============================== 15:41:04.123103 | 79ea5bf4-4c83-4625-a53b-a04ac5743505 ==============================
+[0m15:41:04.123103 [info ] [MainThread]: Running with dbt=1.11.2
+[0m15:41:04.123401 [debug] [MainThread]: running dbt with arguments {'fail_fast': 'False', 'partial_parse': 'True', 'write_json': 'True', 'cache_selected_only': 'False', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'printer_width': '80', 'send_anonymous_usage_stats': 'True', 'log_format': 'default', 'use_experimental_parser': 'False', 'empty': 'False', 'log_path': '/Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/logs', 'use_colors': 'True', 'debug': 'False', 'static_parser': 'True', 'indirect_selection': 'eager', 'warn_error': 'None', 'invocation_command': 'dbt run --profiles-dir .', 'target_path': 'None', 'introspect': 'True', 'log_cache_events': 'False', 'version_check': 'True', 'quiet': 'False', 'no_print': 'None', 'profiles_dir': '.'}
+[0m15:41:04.260174 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1064d3f50>]}
+[0m15:41:04.287916 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1054176e0>]}
+[0m15:41:04.288518 [info ] [MainThread]: Registered adapter: postgres=1.10.0
+[0m15:41:04.326973 [debug] [MainThread]: checksum: 3d40d8bbe1bef07db1c24822f2dbfff8bc07f2a48ed4fe2658a40653aec0b54b, vars: {}, profile: , target: , version: 1.11.2
+[0m15:41:04.373890 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 2 files changed.
+[0m15:41:04.374173 [debug] [MainThread]: Partial parsing: updated file: dnc_semantic_layer://models/staging/stg_vts_violation_history.sql
+[0m15:41:04.374313 [debug] [MainThread]: Partial parsing: updated file: dnc_semantic_layer://models/staging/stg_vts_vehicle_risk.sql
+[0m15:41:04.484605 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106f89a90>]}
+[0m15:41:04.510023 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:41:04.510998 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:41:04.522039 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x107121370>]}
+[0m15:41:04.522262 [info ] [MainThread]: Found 7 models, 8 sources, 464 macros
+[0m15:41:04.522406 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x107006e70>]}
+[0m15:41:04.523195 [info ] [MainThread]: 
+[0m15:41:04.523331 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m15:41:04.523432 [info ] [MainThread]: 
+[0m15:41:04.523610 [debug] [MainThread]: Acquiring new postgres connection 'master'
+[0m15:41:04.525053 [debug] [ThreadPool]: Acquiring new postgres connection 'list_hpcl_ceg'
+[0m15:41:04.546324 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg"
+[0m15:41:04.546516 [debug] [ThreadPool]: On list_hpcl_ceg: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg"} */
+
+    select distinct nspname from pg_namespace
+  
+[0m15:41:04.546629 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m15:41:04.817105 [debug] [ThreadPool]: SQL status: SELECT 62 in 0.270 seconds
+[0m15:41:04.818460 [debug] [ThreadPool]: On list_hpcl_ceg: Close
+[0m15:41:04.819798 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_hpcl_ceg, now list_hpcl_ceg_public)
+[0m15:41:04.823774 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg_public"
+[0m15:41:04.824033 [debug] [ThreadPool]: On list_hpcl_ceg_public: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg_public"} */
+select
+      'hpcl_ceg' as database,
+      tablename as name,
+      schemaname as schema,
+      'table' as type
+    from pg_tables
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      viewname as name,
+      schemaname as schema,
+      'view' as type
+    from pg_views
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      matviewname as name,
+      schemaname as schema,
+      'materialized_view' as type
+    from pg_matviews
+    where schemaname ilike 'public'
+  
+[0m15:41:04.824229 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m15:41:05.016428 [debug] [ThreadPool]: SQL status: SELECT 300 in 0.192 seconds
+[0m15:41:05.023163 [debug] [ThreadPool]: On list_hpcl_ceg_public: ROLLBACK
+[0m15:41:05.040523 [debug] [ThreadPool]: On list_hpcl_ceg_public: Close
+[0m15:41:05.086577 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:05.086818 [debug] [MainThread]: On master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "master"} */
+select distinct
+        dependent_namespace.nspname as dependent_schema,
+        dependent_class.relname as dependent_name,
+        referenced_namespace.nspname as referenced_schema,
+        referenced_class.relname as referenced_name
+
+    -- Query for views: views are entries in pg_class with an entry in pg_rewrite, but we avoid
+    -- a seq scan on pg_rewrite by leveraging the fact there is an "internal" row in pg_depend for
+    -- the view...
+    from pg_class as dependent_class
+    join pg_namespace as dependent_namespace on dependent_namespace.oid = dependent_class.relnamespace
+    join pg_depend as dependent_depend on dependent_depend.refobjid = dependent_class.oid
+        and dependent_depend.classid = 'pg_rewrite'::regclass
+        and dependent_depend.refclassid = 'pg_class'::regclass
+        and dependent_depend.deptype = 'i'
+
+    -- ... and via pg_depend (that has a row per column, hence the need for "distinct" above, and
+    -- making sure to exclude the internal row to avoid a view appearing to depend on itself)...
+    join pg_depend as joining_depend on joining_depend.objid = dependent_depend.objid
+        and joining_depend.classid = 'pg_rewrite'::regclass
+        and joining_depend.refclassid = 'pg_class'::regclass
+        and joining_depend.refobjid != dependent_depend.refobjid
+
+    -- ... we can find the tables they query from in pg_class, but excluding system tables. Note we
+    -- don't need need to exclude _dependent_ system tables, because they only query from other
+    -- system tables, and so are automatically excluded by excluding _referenced_ system tables
+    join pg_class as referenced_class on referenced_class.oid = joining_depend.refobjid
+    join pg_namespace as referenced_namespace on referenced_namespace.oid = referenced_class.relnamespace
+        and referenced_namespace.nspname != 'information_schema'
+        and referenced_namespace.nspname not like 'pg\_%'
+
+    order by
+        dependent_schema, dependent_name, referenced_schema, referenced_name;
+[0m15:41:05.087013 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m15:41:05.232410 [debug] [MainThread]: SQL status: SELECT 6 in 0.145 seconds
+[0m15:41:05.234094 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10766e0c0>]}
+[0m15:41:05.234416 [debug] [MainThread]: On master: ROLLBACK
+[0m15:41:05.247523 [debug] [MainThread]: On master: COMMIT
+[0m15:41:05.247824 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:05.248037 [debug] [MainThread]: On master: COMMIT
+[0m15:41:05.276565 [debug] [MainThread]: SQL status: COMMIT in 0.028 seconds
+[0m15:41:05.276807 [debug] [MainThread]: On master: Close
+[0m15:41:05.280086 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:05.280414 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:05.281058 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:05.280812 [info ] [Thread-1 (]: 1 of 7 START sql view model public.stg_vts_ongoing_trips ....................... [RUN]
+[0m15:41:05.281428 [info ] [Thread-2 (]: 2 of 7 START sql view model public.stg_vts_truck_master ........................ [RUN]
+[0m15:41:05.282149 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly list_hpcl_ceg_public, now model.dnc_semantic_layer.stg_vts_ongoing_trips)
+[0m15:41:05.281800 [info ] [Thread-3 (]: 3 of 7 START sql view model public.stg_vts_vehicle_risk ........................ [RUN]
+[0m15:41:05.282564 [debug] [Thread-2 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_truck_master'
+[0m15:41:05.282820 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:05.283134 [debug] [Thread-3 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_vehicle_risk'
+[0m15:41:05.283384 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:05.288727 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.288994 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:05.290639 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.292361 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.292988 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:05.299012 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:05.305499 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:05.316753 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.317734 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.320537 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.320954 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.321147 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.321335 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.321502 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned and Renamed Truck Master
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_truck_master"
+)
+
+SELECT
+    truck_no AS vehicle_id,
+    transporter_name,
+    transporter_code,
+    capacity_of_the_truck AS capacity,
+    COALESCE(whether_truck_blacklisted, 'N') = 'Y' AS is_blacklisted,
+    ownership_type,
+    region,
+    zone,
+    engine_no,
+    chassis_no,
+    last_changed_date AS last_updated_at
+FROM raw
+  );
+[0m15:41:05.321843 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Ongoing Trips
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_ongoing_trips"
+)
+
+SELECT
+    id AS trip_pk,
+    trip_id,
+    tt_number AS vehicle_id,
+    driver_name,
+    transporter_name,
+    invoice_no,
+    vehicle_location AS current_location,
+    violation_type AS current_violation_code,
+    event_start_datetime AS trip_started_at,
+    event_end_datetime AS trip_ended_at,
+    region,
+    zone,
+    bu,
+    sap_id
+FROM raw
+  );
+[0m15:41:05.322011 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp"
+    
+    
+  as (
+    -- Snapshot Vehicle Risk
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."tt_risk_score"
+)
+
+SELECT
+    tt_number AS vehicle_id,
+    risk_score AS current_risk_score,
+    transporter_name,
+    transporter_code,
+    total_trips AS lifetime_trips
+FROM raw
+  );
+[0m15:41:05.322169 [debug] [Thread-2 (]: Opening a new connection, currently in state init
+[0m15:41:05.322312 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:41:05.322445 [debug] [Thread-3 (]: Opening a new connection, currently in state init
+[0m15:41:05.482808 [debug] [Thread-3 (]: SQL status: CREATE VIEW in 0.160 seconds
+[0m15:41:05.487332 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.487574 [debug] [Thread-2 (]: SQL status: CREATE VIEW in 0.165 seconds
+[0m15:41:05.487780 [debug] [Thread-1 (]: SQL status: CREATE VIEW in 0.165 seconds
+[0m15:41:05.487960 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+alter table "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp" rename to "stg_vts_vehicle_risk"
+[0m15:41:05.490132 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.492090 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.492319 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master" rename to "stg_vts_truck_master__dbt_backup"
+[0m15:41:05.492538 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips" rename to "stg_vts_ongoing_trips__dbt_backup"
+[0m15:41:05.505585 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.013 seconds
+[0m15:41:05.512215 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:41:05.512410 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.020 seconds
+[0m15:41:05.512575 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.512716 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.020 seconds
+[0m15:41:05.514052 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.514207 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:41:05.515403 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.515555 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp" rename to "stg_vts_truck_master"
+[0m15:41:05.515725 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp" rename to "stg_vts_ongoing_trips"
+[0m15:41:05.542820 [debug] [Thread-3 (]: SQL status: COMMIT in 0.027 seconds
+[0m15:41:05.542990 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.027 seconds
+[0m15:41:05.543142 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.027 seconds
+[0m15:41:05.546017 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup"
+[0m15:41:05.547474 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:41:05.548118 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:41:05.550230 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:05.550392 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.550537 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.550683 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup" cascade
+[0m15:41:05.550827 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:41:05.550964 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:41:05.564518 [debug] [Thread-3 (]: SQL status: DROP VIEW in 0.013 seconds
+[0m15:41:05.565557 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: Close
+[0m15:41:05.566324 [debug] [Thread-1 (]: SQL status: COMMIT in 0.015 seconds
+[0m15:41:05.567464 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup"
+[0m15:41:05.567804 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:05.567966 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup" cascade
+[0m15:41:05.568140 [debug] [Thread-2 (]: SQL status: COMMIT in 0.017 seconds
+[0m15:41:05.569309 [debug] [Thread-2 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup"
+[0m15:41:05.569521 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106f40f80>]}
+[0m15:41:05.569897 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:05.570213 [info ] [Thread-3 (]: 3 of 7 OK created sql view model public.stg_vts_vehicle_risk ................... [[32mCREATE VIEW[0m in 0.28s]
+[0m15:41:05.570433 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup" cascade
+[0m15:41:05.570696 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:05.585483 [debug] [Thread-1 (]: SQL status: DROP VIEW in 0.017 seconds
+[0m15:41:05.586076 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: Close
+[0m15:41:05.586245 [debug] [Thread-2 (]: SQL status: DROP VIEW in 0.015 seconds
+[0m15:41:05.586840 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: Close
+[0m15:41:05.587080 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106f55e80>]}
+[0m15:41:05.587594 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106f586b0>]}
+[0m15:41:05.587364 [info ] [Thread-1 (]: 1 of 7 OK created sql view model public.stg_vts_ongoing_trips .................. [[32mCREATE VIEW[0m in 0.30s]
+[0m15:41:05.588216 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:05.587969 [info ] [Thread-2 (]: 2 of 7 OK created sql view model public.stg_vts_truck_master ................... [[32mCREATE VIEW[0m in 0.31s]
+[0m15:41:05.588546 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:05.588861 [debug] [Thread-4 (]: Began running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:05.589073 [info ] [Thread-4 (]: 4 of 7 START sql view model public.stg_vts_violation_history ................... [RUN]
+[0m15:41:05.589328 [debug] [Thread-4 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_violation_history'
+[0m15:41:05.589493 [debug] [Thread-4 (]: Began compiling node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:05.591044 [debug] [Thread-4 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:05.591434 [debug] [Thread-4 (]: Began executing node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:05.595315 [debug] [Thread-4 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:05.595648 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:05.595823 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Violation History
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_alert_history"
+),
+
+truck_master AS (
+    SELECT truck_no, transporter_name, transporter_code
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+)
+
+SELECT
+    r.id AS event_id,
+    r.tl_number AS vehicle_id,
+    tm.transporter_name,
+    tm.transporter_code,
+    r.vts_end_datetime AS event_at,
+    r.total_trips,
+    -- Pre-calculate the total violations metric
+    (COALESCE(r.stoppage_violations_count, 0) + 
+     COALESCE(r.route_deviation_count, 0) + 
+     COALESCE(r.speed_violation_count, 0) + 
+     COALESCE(r.night_driving_count, 0) + 
+     COALESCE(r.device_offline_count, 0) + 
+     COALESCE(r.device_tamper_count, 0) + 
+     COALESCE(r.continuous_driving_count, 0) + 
+     COALESCE(r.no_halt_zone_count, 0) + 
+     COALESCE(r.main_supply_removal_count, 0)) AS total_violations_count,
+    r.stoppage_violations_count,
+    r.route_deviation_count,
+    r.speed_violation_count,
+    r.night_driving_count,
+    r.violation_type AS violation_tags, -- original array
+    r.region,
+    r.bu,
+    r.zone,
+    r.location_name
+FROM raw r
+LEFT JOIN truck_master tm ON r.tl_number = tm.truck_no
+  );
+[0m15:41:05.595997 [debug] [Thread-4 (]: Opening a new connection, currently in state init
+[0m15:41:05.747508 [debug] [Thread-4 (]: Postgres adapter: Postgres error: column "truck_no" does not exist
+LINE 13:     SELECT truck_no, transporter_name, transporter_code
+                    ^
+
+[0m15:41:05.747812 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: ROLLBACK
+[0m15:41:05.765080 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: Close
+[0m15:41:05.771492 [debug] [Thread-4 (]: Database Error in model stg_vts_violation_history (models/staging/stg_vts_violation_history.sql)
+  column "truck_no" does not exist
+  LINE 13:     SELECT truck_no, transporter_name, transporter_code
+                      ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_violation_history.sql
+[0m15:41:05.771763 [debug] [Thread-4 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '79ea5bf4-4c83-4625-a53b-a04ac5743505', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1076decf0>]}
+[0m15:41:05.772094 [error] [Thread-4 (]: 4 of 7 ERROR creating sql view model public.stg_vts_violation_history .......... [[31mERROR[0m in 0.18s]
+[0m15:41:05.772369 [debug] [Thread-4 (]: Finished running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:05.772643 [debug] [Thread-7 (]: Marking all children of 'model.dnc_semantic_layer.stg_vts_violation_history' to be skipped because of status 'error'.  Reason: Database Error in model stg_vts_violation_history (models/staging/stg_vts_violation_history.sql)
+  column "truck_no" does not exist
+  LINE 13:     SELECT truck_no, transporter_name, transporter_code
+                      ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_violation_history.sql.
+[0m15:41:05.773358 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:05.773544 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:05.773912 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:05.773756 [info ] [Thread-1 (]: 5 of 7 SKIP relation public.dim_transporters_metrics ........................... [[33mSKIP[0m]
+[0m15:41:05.774167 [info ] [Thread-2 (]: 6 of 7 SKIP relation public.dim_vehicles_metrics ............................... [[33mSKIP[0m]
+[0m15:41:05.774361 [info ] [Thread-3 (]: 7 of 7 SKIP relation public.fct_violation_trends ............................... [[33mSKIP[0m]
+[0m15:41:05.774590 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:05.774806 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:05.774985 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:05.775636 [debug] [MainThread]: On master: COMMIT
+[0m15:41:05.775799 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:05.775930 [debug] [MainThread]: On master: COMMIT
+[0m15:41:05.776053 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m15:41:05.934425 [debug] [MainThread]: SQL status: COMMIT in 0.158 seconds
+[0m15:41:05.934725 [debug] [MainThread]: On master: Close
+[0m15:41:05.935078 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m15:41:05.935228 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_ongoing_trips' was properly closed.
+[0m15:41:05.935358 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_truck_master' was properly closed.
+[0m15:41:05.935482 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_vehicle_risk' was properly closed.
+[0m15:41:05.935605 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_violation_history' was properly closed.
+[0m15:41:05.935816 [info ] [MainThread]: 
+[0m15:41:05.935992 [info ] [MainThread]: Finished running 3 table models, 4 view models in 0 hours 0 minutes and 1.41 seconds (1.41s).
+[0m15:41:05.936584 [debug] [MainThread]: Command end result
+[0m15:41:05.949349 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:41:05.950664 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:41:05.953933 [debug] [MainThread]: Wrote artifact RunExecutionResult to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/run_results.json
+[0m15:41:05.954096 [info ] [MainThread]: 
+[0m15:41:05.954260 [info ] [MainThread]: [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m15:41:05.954390 [info ] [MainThread]: 
+[0m15:41:05.954553 [error] [MainThread]: [31mFailure in model stg_vts_violation_history (models/staging/stg_vts_violation_history.sql)[0m
+[0m15:41:05.954704 [error] [MainThread]:   Database Error in model stg_vts_violation_history (models/staging/stg_vts_violation_history.sql)
+  column "truck_no" does not exist
+  LINE 13:     SELECT truck_no, transporter_name, transporter_code
+                      ^
+  compiled code at target/run/dnc_semantic_layer/models/staging/stg_vts_violation_history.sql
+[0m15:41:05.954822 [info ] [MainThread]: 
+[0m15:41:05.954957 [info ] [MainThread]:   compiled code at target/compiled/dnc_semantic_layer/models/staging/stg_vts_violation_history.sql
+[0m15:41:05.955073 [info ] [MainThread]: 
+[0m15:41:05.955199 [info ] [MainThread]: Done. PASS=3 WARN=0 ERROR=1 SKIP=3 NO-OP=0 TOTAL=7
+[0m15:41:05.957435 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": false, "command_wall_clock_time": 1.8748716, "process_in_blocks": "0", "process_kernel_time": 0.186392, "process_mem_max_rss": "139984896", "process_out_blocks": "0", "process_user_time": 1.070963}
+[0m15:41:05.957699 [debug] [MainThread]: Command `dbt run` failed at 15:41:05.957651 after 1.88 seconds
+[0m15:41:05.957884 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105f57dd0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105f98230>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104ce4410>]}
+[0m15:41:05.958052 [debug] [MainThread]: Flushing usage events
+[0m15:41:07.043785 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m15:41:40.395962 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1023e23c0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104fd0560>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104fd0290>]}
+
+
+============================== 15:41:40.399413 | 4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80 ==============================
+[0m15:41:40.399413 [info ] [MainThread]: Running with dbt=1.11.2
+[0m15:41:40.399659 [debug] [MainThread]: running dbt with arguments {'introspect': 'True', 'log_path': '/Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/logs', 'invocation_command': 'dbt run --profiles-dir .', 'static_parser': 'True', 'fail_fast': 'False', 'use_experimental_parser': 'False', 'empty': 'False', 'debug': 'False', 'target_path': 'None', 'log_cache_events': 'False', 'no_print': 'None', 'partial_parse': 'True', 'send_anonymous_usage_stats': 'True', 'use_colors': 'True', 'cache_selected_only': 'False', 'quiet': 'False', 'profiles_dir': '.', 'write_json': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'warn_error': 'None', 'indirect_selection': 'eager', 'log_format': 'default', 'printer_width': '80', 'version_check': 'True'}
+[0m15:41:40.489886 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1055673e0>]}
+[0m15:41:40.517923 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x102874a10>]}
+[0m15:41:40.519011 [info ] [MainThread]: Registered adapter: postgres=1.10.0
+[0m15:41:40.557824 [debug] [MainThread]: checksum: 3d40d8bbe1bef07db1c24822f2dbfff8bc07f2a48ed4fe2658a40653aec0b54b, vars: {}, profile: , target: , version: 1.11.2
+[0m15:41:40.601951 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 1 files changed.
+[0m15:41:40.602253 [debug] [MainThread]: Partial parsing: updated file: dnc_semantic_layer://models/staging/stg_vts_violation_history.sql
+[0m15:41:40.708076 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105fd0920>]}
+[0m15:41:40.733845 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:41:40.734828 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:41:40.744415 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10600d3d0>]}
+[0m15:41:40.744604 [info ] [MainThread]: Found 7 models, 8 sources, 464 macros
+[0m15:41:40.744731 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105fd36b0>]}
+[0m15:41:40.745457 [info ] [MainThread]: 
+[0m15:41:40.745588 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m15:41:40.745687 [info ] [MainThread]: 
+[0m15:41:40.745868 [debug] [MainThread]: Acquiring new postgres connection 'master'
+[0m15:41:40.747316 [debug] [ThreadPool]: Acquiring new postgres connection 'list_hpcl_ceg'
+[0m15:41:40.765141 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg"
+[0m15:41:40.765310 [debug] [ThreadPool]: On list_hpcl_ceg: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg"} */
+
+    select distinct nspname from pg_namespace
+  
+[0m15:41:40.765408 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m15:41:40.937680 [debug] [ThreadPool]: SQL status: SELECT 62 in 0.172 seconds
+[0m15:41:40.938381 [debug] [ThreadPool]: On list_hpcl_ceg: Close
+[0m15:41:40.939069 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_hpcl_ceg, now list_hpcl_ceg_public)
+[0m15:41:40.941409 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg_public"
+[0m15:41:40.941563 [debug] [ThreadPool]: On list_hpcl_ceg_public: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg_public"} */
+select
+      'hpcl_ceg' as database,
+      tablename as name,
+      schemaname as schema,
+      'table' as type
+    from pg_tables
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      viewname as name,
+      schemaname as schema,
+      'view' as type
+    from pg_views
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      matviewname as name,
+      schemaname as schema,
+      'materialized_view' as type
+    from pg_matviews
+    where schemaname ilike 'public'
+  
+[0m15:41:40.941726 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m15:41:41.118799 [debug] [ThreadPool]: SQL status: SELECT 301 in 0.177 seconds
+[0m15:41:41.123470 [debug] [ThreadPool]: On list_hpcl_ceg_public: ROLLBACK
+[0m15:41:41.138491 [debug] [ThreadPool]: On list_hpcl_ceg_public: Close
+[0m15:41:41.180821 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:41.181030 [debug] [MainThread]: On master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "master"} */
+select distinct
+        dependent_namespace.nspname as dependent_schema,
+        dependent_class.relname as dependent_name,
+        referenced_namespace.nspname as referenced_schema,
+        referenced_class.relname as referenced_name
+
+    -- Query for views: views are entries in pg_class with an entry in pg_rewrite, but we avoid
+    -- a seq scan on pg_rewrite by leveraging the fact there is an "internal" row in pg_depend for
+    -- the view...
+    from pg_class as dependent_class
+    join pg_namespace as dependent_namespace on dependent_namespace.oid = dependent_class.relnamespace
+    join pg_depend as dependent_depend on dependent_depend.refobjid = dependent_class.oid
+        and dependent_depend.classid = 'pg_rewrite'::regclass
+        and dependent_depend.refclassid = 'pg_class'::regclass
+        and dependent_depend.deptype = 'i'
+
+    -- ... and via pg_depend (that has a row per column, hence the need for "distinct" above, and
+    -- making sure to exclude the internal row to avoid a view appearing to depend on itself)...
+    join pg_depend as joining_depend on joining_depend.objid = dependent_depend.objid
+        and joining_depend.classid = 'pg_rewrite'::regclass
+        and joining_depend.refclassid = 'pg_class'::regclass
+        and joining_depend.refobjid != dependent_depend.refobjid
+
+    -- ... we can find the tables they query from in pg_class, but excluding system tables. Note we
+    -- don't need need to exclude _dependent_ system tables, because they only query from other
+    -- system tables, and so are automatically excluded by excluding _referenced_ system tables
+    join pg_class as referenced_class on referenced_class.oid = joining_depend.refobjid
+    join pg_namespace as referenced_namespace on referenced_namespace.oid = referenced_class.relnamespace
+        and referenced_namespace.nspname != 'information_schema'
+        and referenced_namespace.nspname not like 'pg\_%'
+
+    order by
+        dependent_schema, dependent_name, referenced_schema, referenced_name;
+[0m15:41:41.181174 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m15:41:41.350837 [debug] [MainThread]: SQL status: SELECT 7 in 0.170 seconds
+[0m15:41:41.353059 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106052870>]}
+[0m15:41:41.353447 [debug] [MainThread]: On master: ROLLBACK
+[0m15:41:41.368679 [debug] [MainThread]: On master: COMMIT
+[0m15:41:41.368949 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:41.369181 [debug] [MainThread]: On master: COMMIT
+[0m15:41:41.402992 [debug] [MainThread]: SQL status: COMMIT in 0.034 seconds
+[0m15:41:41.403295 [debug] [MainThread]: On master: Close
+[0m15:41:41.406510 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:41.406882 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:41.407214 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:41.407609 [info ] [Thread-1 (]: 1 of 7 START sql view model public.stg_vts_ongoing_trips ....................... [RUN]
+[0m15:41:41.408090 [info ] [Thread-2 (]: 2 of 7 START sql view model public.stg_vts_truck_master ........................ [RUN]
+[0m15:41:41.408526 [info ] [Thread-3 (]: 3 of 7 START sql view model public.stg_vts_vehicle_risk ........................ [RUN]
+[0m15:41:41.408943 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly list_hpcl_ceg_public, now model.dnc_semantic_layer.stg_vts_ongoing_trips)
+[0m15:41:41.409317 [debug] [Thread-2 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_truck_master'
+[0m15:41:41.409648 [debug] [Thread-3 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_vehicle_risk'
+[0m15:41:41.409908 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:41.410127 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:41.410336 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:41.415647 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.417298 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.418862 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.419493 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:41.419744 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:41.425769 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:41.440856 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.442009 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.445100 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.445546 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.445715 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.445867 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned and Renamed Truck Master
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_truck_master"
+)
+
+SELECT
+    truck_no AS vehicle_id,
+    transporter_name,
+    transporter_code,
+    capacity_of_the_truck AS capacity,
+    COALESCE(whether_truck_blacklisted, 'N') = 'Y' AS is_blacklisted,
+    ownership_type,
+    region,
+    zone,
+    engine_no,
+    chassis_no,
+    last_changed_date AS last_updated_at
+FROM raw
+  );
+[0m15:41:41.446034 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.446172 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Ongoing Trips
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_ongoing_trips"
+)
+
+SELECT
+    id AS trip_pk,
+    trip_id,
+    tt_number AS vehicle_id,
+    driver_name,
+    transporter_name,
+    invoice_no,
+    vehicle_location AS current_location,
+    violation_type AS current_violation_code,
+    event_start_datetime AS trip_started_at,
+    event_end_datetime AS trip_ended_at,
+    region,
+    zone,
+    bu,
+    sap_id
+FROM raw
+  );
+[0m15:41:41.446323 [debug] [Thread-2 (]: Opening a new connection, currently in state init
+[0m15:41:41.446462 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp"
+    
+    
+  as (
+    -- Snapshot Vehicle Risk
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."tt_risk_score"
+)
+
+SELECT
+    tt_number AS vehicle_id,
+    risk_score AS current_risk_score,
+    transporter_name,
+    transporter_code,
+    total_trips AS lifetime_trips
+FROM raw
+  );
+[0m15:41:41.446619 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:41:41.446809 [debug] [Thread-3 (]: Opening a new connection, currently in state init
+[0m15:41:41.652200 [debug] [Thread-3 (]: SQL status: CREATE VIEW in 0.205 seconds
+[0m15:41:41.658067 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.658323 [debug] [Thread-2 (]: SQL status: CREATE VIEW in 0.212 seconds
+[0m15:41:41.658523 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+alter table "hpcl_ceg"."public"."stg_vts_vehicle_risk" rename to "stg_vts_vehicle_risk__dbt_backup"
+[0m15:41:41.660753 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.660986 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master" rename to "stg_vts_truck_master__dbt_backup"
+[0m15:41:41.676460 [debug] [Thread-1 (]: SQL status: CREATE VIEW in 0.230 seconds
+[0m15:41:41.678635 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.678823 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips" rename to "stg_vts_ongoing_trips__dbt_backup"
+[0m15:41:41.686932 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.026 seconds
+[0m15:41:41.687146 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.026 seconds
+[0m15:41:41.688910 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.690372 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.690562 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp" rename to "stg_vts_truck_master"
+[0m15:41:41.690737 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+alter table "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp" rename to "stg_vts_vehicle_risk"
+[0m15:41:41.698483 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:41:41.699968 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.700148 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp" rename to "stg_vts_ongoing_trips"
+[0m15:41:41.729273 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.038 seconds
+[0m15:41:41.729506 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.029 seconds
+[0m15:41:41.734780 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.044 seconds
+[0m15:41:41.739508 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:41:41.740502 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:41:41.741296 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:41:41.741500 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.741685 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.741858 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.742020 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:41:41.742171 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:41:41.742321 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:41:41.764619 [debug] [Thread-2 (]: SQL status: COMMIT in 0.022 seconds
+[0m15:41:41.768359 [debug] [Thread-2 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup"
+[0m15:41:41.770992 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:41:41.771216 [debug] [Thread-1 (]: SQL status: COMMIT in 0.029 seconds
+[0m15:41:41.771403 [debug] [Thread-3 (]: SQL status: COMMIT in 0.029 seconds
+[0m15:41:41.771572 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup" cascade
+[0m15:41:41.772866 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup"
+[0m15:41:41.773995 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup"
+[0m15:41:41.774340 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:41:41.774648 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:41:41.774808 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup" cascade
+[0m15:41:41.774964 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup" cascade
+[0m15:41:41.813616 [debug] [Thread-3 (]: SQL status: DROP VIEW in 0.038 seconds
+[0m15:41:41.813817 [debug] [Thread-2 (]: SQL status: DROP VIEW in 0.040 seconds
+[0m15:41:41.815162 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: Close
+[0m15:41:41.815357 [debug] [Thread-1 (]: SQL status: DROP VIEW in 0.040 seconds
+[0m15:41:41.816001 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: Close
+[0m15:41:41.816716 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: Close
+[0m15:41:41.818591 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105564f50>]}
+[0m15:41:41.818862 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106061c70>]}
+[0m15:41:41.819036 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106050380>]}
+[0m15:41:41.819346 [info ] [Thread-3 (]: 3 of 7 OK created sql view model public.stg_vts_vehicle_risk ................... [[32mCREATE VIEW[0m in 0.41s]
+[0m15:41:41.820172 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:41:41.819644 [info ] [Thread-2 (]: 2 of 7 OK created sql view model public.stg_vts_truck_master ................... [[32mCREATE VIEW[0m in 0.41s]
+[0m15:41:41.820526 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:41:41.819892 [info ] [Thread-1 (]: 1 of 7 OK created sql view model public.stg_vts_ongoing_trips .................. [[32mCREATE VIEW[0m in 0.41s]
+[0m15:41:41.820908 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:41:41.821117 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:41.821349 [info ] [Thread-1 (]: 4 of 7 START sql view model public.stg_vts_violation_history ................... [RUN]
+[0m15:41:41.821563 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_ongoing_trips, now model.dnc_semantic_layer.stg_vts_violation_history)
+[0m15:41:41.821732 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:41.823242 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:41.823640 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:41.828241 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:41.828581 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:41.828776 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Violation History
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_alert_history"
+),
+
+truck_master AS (
+    SELECT vehicle_id, transporter_name, transporter_code
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+)
+
+SELECT
+    r.id AS event_id,
+    r.tl_number AS vehicle_id,
+    tm.transporter_name,
+    tm.transporter_code,
+    r.vts_end_datetime AS event_at,
+    r.total_trips,
+    -- Pre-calculate the total violations metric
+    (COALESCE(r.stoppage_violations_count, 0) + 
+     COALESCE(r.route_deviation_count, 0) + 
+     COALESCE(r.speed_violation_count, 0) + 
+     COALESCE(r.night_driving_count, 0) + 
+     COALESCE(r.device_offline_count, 0) + 
+     COALESCE(r.device_tamper_count, 0) + 
+     COALESCE(r.continuous_driving_count, 0) + 
+     COALESCE(r.no_halt_zone_count, 0) + 
+     COALESCE(r.main_supply_removal_count, 0)) AS total_violations_count,
+    r.stoppage_violations_count,
+    r.route_deviation_count,
+    r.speed_violation_count,
+    r.night_driving_count,
+    r.violation_type AS violation_tags, -- original array
+    r.region,
+    r.bu,
+    r.zone,
+    r.location_name
+FROM raw r
+LEFT JOIN truck_master tm ON r.tl_number = tm.vehicle_id
+  );
+[0m15:41:41.828954 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:41:42.198327 [debug] [Thread-1 (]: SQL status: CREATE VIEW in 0.369 seconds
+[0m15:41:42.202981 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:42.203381 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+alter table "hpcl_ceg"."public"."stg_vts_violation_history" rename to "stg_vts_violation_history__dbt_backup"
+[0m15:41:42.222753 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:41:42.225197 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:42.225488 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+alter table "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp" rename to "stg_vts_violation_history"
+[0m15:41:42.244461 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:41:42.245663 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:41:42.245935 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:42.246178 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:41:42.263997 [debug] [Thread-1 (]: SQL status: COMMIT in 0.018 seconds
+[0m15:41:42.266159 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup"
+[0m15:41:42.266729 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:41:42.267001 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup" cascade
+[0m15:41:42.293275 [debug] [Thread-1 (]: SQL status: DROP VIEW in 0.026 seconds
+[0m15:41:42.294352 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_violation_history: Close
+[0m15:41:42.294957 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1064b8d10>]}
+[0m15:41:42.295472 [info ] [Thread-1 (]: 4 of 7 OK created sql view model public.stg_vts_violation_history .............. [[32mCREATE VIEW[0m in 0.47s]
+[0m15:41:42.295899 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:41:42.296621 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:42.297052 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:42.297437 [debug] [Thread-4 (]: Began running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:42.297826 [info ] [Thread-3 (]: 5 of 7 START sql table model public.dim_transporters_metrics ................... [RUN]
+[0m15:41:42.298315 [info ] [Thread-2 (]: 6 of 7 START sql table model public.dim_vehicles_metrics ....................... [RUN]
+[0m15:41:42.298786 [info ] [Thread-4 (]: 7 of 7 START sql table model public.fct_violation_trends ....................... [RUN]
+[0m15:41:42.299132 [debug] [Thread-3 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_vehicle_risk, now model.dnc_semantic_layer.dim_transporters_metrics)
+[0m15:41:42.299399 [debug] [Thread-2 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_truck_master, now model.dnc_semantic_layer.dim_vehicles_metrics)
+[0m15:41:42.299701 [debug] [Thread-4 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.fct_violation_trends'
+[0m15:41:42.299932 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:42.300150 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:42.300369 [debug] [Thread-4 (]: Began compiling node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:42.303007 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:42.305082 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:41:42.306506 [debug] [Thread-4 (]: Writing injected SQL for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:42.307051 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:42.320734 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:41:42.321015 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:42.321265 [debug] [Thread-4 (]: Began executing node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:42.324555 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:42.328624 [debug] [Thread-4 (]: Writing runtime sql for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:42.328931 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:41:42.329149 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_vehicles_metrics"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."dim_vehicles_metrics__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- The "Golden Record" for Al - combining Master info with current Risk and Violations
+WITH vehicles AS (
+    SELECT * FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+),
+
+risk AS (
+    SELECT * FROM "hpcl_ceg"."public"."stg_vts_vehicle_risk"
+),
+
+violations_summary AS (
+    SELECT 
+        vehicle_id,
+        SUM(total_violations_count) AS lifetime_violations,
+        MAX(event_at) AS last_violation_at
+    FROM "hpcl_ceg"."public"."stg_vts_violation_history"
+    GROUP BY 1
+)
+
+SELECT
+    v.vehicle_id,
+    v.transporter_name,
+    v.region,
+    v.zone,
+    v.is_blacklisted,
+    v.capacity,
+    COALESCE(r.current_risk_score, 0) AS current_risk_score,
+    COALESCE(vs.lifetime_violations, 0) AS total_violations_count,
+    vs.last_violation_at,
+    r.risk_device_removed,
+    r.risk_power_disconnect,
+    r.risk_route_deviation,
+    r.risk_stoppage_violation
+FROM vehicles v
+LEFT JOIN risk r ON v.vehicle_id = r.vehicle_id
+LEFT JOIN violations_summary vs ON v.vehicle_id = vs.vehicle_id
+  );
+  
+[0m15:41:42.329331 [debug] [Thread-2 (]: Opening a new connection, currently in state closed
+[0m15:41:42.329492 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:42.329714 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:42.329941 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."dim_transporters_metrics__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- Transporter Performance Mart
+WITH transporter_master AS (
+    SELECT DISTINCT transporter_code, transporter_name
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+),
+
+fleet_risk AS (
+    SELECT * FROM "hpcl_ceg"."public"."transporter_risk_score"
+),
+
+violation_totals AS (
+    SELECT 
+        v.transporter_name,
+        SUM(total_violations_count) AS fleet_violations,
+        COUNT(DISTINCT vehicle_id) AS vehicle_count
+    FROM "hpcl_ceg"."public"."stg_vts_violation_history" v
+    GROUP BY 1
+)
+
+SELECT
+    tm.transporter_name,
+    tm.transporter_code,
+    fr.risk_score AS current_fleet_risk,
+    vt.fleet_violations,
+    vt.vehicle_count,
+    ROUND(CAST(vt.fleet_violations AS NUMERIC) / NULLIF(vt.vehicle_count, 0), 2) AS violations_per_vehicle
+FROM transporter_master tm
+LEFT JOIN fleet_risk fr ON tm.transporter_code = fr.transporter_code
+LEFT JOIN violation_totals vt ON tm.transporter_name = vt.transporter_name
+  );
+  
+[0m15:41:42.330128 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- AI ready Violation Trends
+SELECT
+    vehicle_id,
+    region,
+    zone,
+    event_at::DATE AS violation_date,
+    total_violations_count,
+    stoppage_violations_count,
+    route_deviation_count,
+    speed_violation_count,
+    night_driving_count
+FROM "hpcl_ceg"."public"."stg_vts_violation_history"
+  );
+  
+[0m15:41:42.330302 [debug] [Thread-3 (]: Opening a new connection, currently in state closed
+[0m15:41:42.330445 [debug] [Thread-4 (]: Opening a new connection, currently in state init
+[0m15:41:42.638162 [debug] [Thread-2 (]: Postgres adapter: Postgres error: column r.risk_device_removed does not exist
+LINE 40:     r.risk_device_removed,
+             ^
+
+[0m15:41:42.638725 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: ROLLBACK
+[0m15:41:42.671583 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: Close
+[0m15:41:42.679223 [debug] [Thread-2 (]: Database Error in model dim_vehicles_metrics (models/marts/dim_vehicles_metrics.sql)
+  column r.risk_device_removed does not exist
+  LINE 40:     r.risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_vehicles_metrics.sql
+[0m15:41:42.679621 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105fd1970>]}
+[0m15:41:42.680096 [error] [Thread-2 (]: 6 of 7 ERROR creating sql table model public.dim_vehicles_metrics .............. [[31mERROR[0m in 0.38s]
+[0m15:41:42.680458 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:41:42.680829 [debug] [Thread-7 (]: Marking all children of 'model.dnc_semantic_layer.dim_vehicles_metrics' to be skipped because of status 'error'.  Reason: Database Error in model dim_vehicles_metrics (models/marts/dim_vehicles_metrics.sql)
+  column r.risk_device_removed does not exist
+  LINE 40:     r.risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_vehicles_metrics.sql.
+[0m15:41:46.371033 [debug] [Thread-3 (]: SQL status: SELECT 23668 in 4.041 seconds
+[0m15:41:46.378434 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:46.378800 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+alter table "hpcl_ceg"."public"."dim_transporters_metrics__dbt_tmp" rename to "dim_transporters_metrics"
+[0m15:41:46.415045 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.036 seconds
+[0m15:41:46.416502 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: COMMIT
+[0m15:41:46.416852 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:46.417148 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: COMMIT
+[0m15:41:46.451649 [debug] [Thread-3 (]: SQL status: COMMIT in 0.034 seconds
+[0m15:41:46.454189 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."dim_transporters_metrics__dbt_backup"
+[0m15:41:46.457201 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:41:46.457520 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+drop table if exists "hpcl_ceg"."public"."dim_transporters_metrics__dbt_backup" cascade
+[0m15:41:46.472460 [debug] [Thread-3 (]: SQL status: DROP TABLE in 0.015 seconds
+[0m15:41:46.473747 [debug] [Thread-3 (]: On model.dnc_semantic_layer.dim_transporters_metrics: Close
+[0m15:41:46.474454 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1064a6d50>]}
+[0m15:41:46.475054 [info ] [Thread-3 (]: 5 of 7 OK created sql table model public.dim_transporters_metrics .............. [[32mSELECT 23668[0m in 4.18s]
+[0m15:41:46.475570 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:41:46.660339 [debug] [Thread-4 (]: SQL status: SELECT 1658003 in 4.330 seconds
+[0m15:41:46.663654 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:46.663923 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+alter table "hpcl_ceg"."public"."fct_violation_trends" rename to "fct_violation_trends__dbt_backup"
+[0m15:41:46.679355 [debug] [Thread-4 (]: SQL status: ALTER TABLE in 0.015 seconds
+[0m15:41:46.681163 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:46.681389 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+alter table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp" rename to "fct_violation_trends"
+[0m15:41:46.694478 [debug] [Thread-4 (]: SQL status: ALTER TABLE in 0.013 seconds
+[0m15:41:46.695506 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:41:46.695737 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:46.695944 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:41:46.738035 [debug] [Thread-4 (]: SQL status: COMMIT in 0.042 seconds
+[0m15:41:46.740321 [debug] [Thread-4 (]: Applying DROP to: "hpcl_ceg"."public"."fct_violation_trends__dbt_backup"
+[0m15:41:46.740944 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:41:46.741220 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+drop table if exists "hpcl_ceg"."public"."fct_violation_trends__dbt_backup" cascade
+[0m15:41:46.778454 [debug] [Thread-4 (]: SQL status: DROP TABLE in 0.037 seconds
+[0m15:41:46.779793 [debug] [Thread-4 (]: On model.dnc_semantic_layer.fct_violation_trends: Close
+[0m15:41:46.780535 [debug] [Thread-4 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '4dfc6db0-6c1c-48ec-94c1-96bf6d8c9b80', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x105b29b20>]}
+[0m15:41:46.781132 [info ] [Thread-4 (]: 7 of 7 OK created sql table model public.fct_violation_trends .................. [[32mSELECT 1658003[0m in 4.48s]
+[0m15:41:46.781579 [debug] [Thread-4 (]: Finished running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:41:46.782828 [debug] [MainThread]: On master: COMMIT
+[0m15:41:46.783081 [debug] [MainThread]: Using postgres connection "master"
+[0m15:41:46.783288 [debug] [MainThread]: On master: COMMIT
+[0m15:41:46.783488 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m15:41:46.927659 [debug] [MainThread]: SQL status: COMMIT in 0.144 seconds
+[0m15:41:46.927941 [debug] [MainThread]: On master: Close
+[0m15:41:46.928270 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m15:41:46.928400 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_violation_history' was properly closed.
+[0m15:41:46.928510 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.dim_vehicles_metrics' was properly closed.
+[0m15:41:46.928612 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.dim_transporters_metrics' was properly closed.
+[0m15:41:46.928712 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.fct_violation_trends' was properly closed.
+[0m15:41:46.928890 [info ] [MainThread]: 
+[0m15:41:46.929030 [info ] [MainThread]: Finished running 3 table models, 4 view models in 0 hours 0 minutes and 6.18 seconds (6.18s).
+[0m15:41:46.929612 [debug] [MainThread]: Command end result
+[0m15:41:46.941399 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:41:46.942204 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:41:46.944568 [debug] [MainThread]: Wrote artifact RunExecutionResult to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/run_results.json
+[0m15:41:46.944694 [info ] [MainThread]: 
+[0m15:41:46.944828 [info ] [MainThread]: [31mCompleted with 1 error, 0 partial successes, and 0 warnings:[0m
+[0m15:41:46.944933 [info ] [MainThread]: 
+[0m15:41:46.945070 [error] [MainThread]: [31mFailure in model dim_vehicles_metrics (models/marts/dim_vehicles_metrics.sql)[0m
+[0m15:41:46.945198 [error] [MainThread]:   Database Error in model dim_vehicles_metrics (models/marts/dim_vehicles_metrics.sql)
+  column r.risk_device_removed does not exist
+  LINE 40:     r.risk_device_removed,
+               ^
+  compiled code at target/run/dnc_semantic_layer/models/marts/dim_vehicles_metrics.sql
+[0m15:41:46.945299 [info ] [MainThread]: 
+[0m15:41:46.945418 [info ] [MainThread]:   compiled code at target/compiled/dnc_semantic_layer/models/marts/dim_vehicles_metrics.sql
+[0m15:41:46.945513 [info ] [MainThread]: 
+[0m15:41:46.945622 [info ] [MainThread]: Done. PASS=6 WARN=0 ERROR=1 SKIP=0 NO-OP=0 TOTAL=7
+[0m15:41:46.947630 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": false, "command_wall_clock_time": 6.5846415, "process_in_blocks": "0", "process_kernel_time": 0.172508, "process_mem_max_rss": "139460608", "process_out_blocks": "0", "process_user_time": 1.143834}
+[0m15:41:46.947857 [debug] [MainThread]: Command `dbt run` failed at 15:41:46.947815 after 6.58 seconds
+[0m15:41:46.948016 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10421c350>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104fd0470>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104fd0290>]}
+[0m15:41:46.948163 [debug] [MainThread]: Flushing usage events
+[0m15:41:48.090608 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m15:42:33.526285 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1081a41d0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x108398470>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1083981a0>]}
+
+
+============================== 15:42:33.529062 | 7e0c0367-c87c-43f0-a667-0c780f6a65f4 ==============================
+[0m15:42:33.529062 [info ] [MainThread]: Running with dbt=1.11.2
+[0m15:42:33.529343 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'log_cache_events': 'False', 'indirect_selection': 'eager', 'log_path': '/Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/logs', 'profiles_dir': '.', 'empty': 'False', 'warn_error': 'None', 'send_anonymous_usage_stats': 'True', 'partial_parse': 'True', 'write_json': 'True', 'introspect': 'True', 'target_path': 'None', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'invocation_command': 'dbt run --profiles-dir .', 'fail_fast': 'False', 'use_colors': 'True', 'no_print': 'None', 'log_format': 'default', 'static_parser': 'True', 'debug': 'False', 'cache_selected_only': 'False', 'quiet': 'False', 'printer_width': '80', 'use_experimental_parser': 'False'}
+[0m15:42:33.653856 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x103ea1370>]}
+[0m15:42:33.681744 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10775c980>]}
+[0m15:42:33.682261 [info ] [MainThread]: Registered adapter: postgres=1.10.0
+[0m15:42:33.727043 [debug] [MainThread]: checksum: 3d40d8bbe1bef07db1c24822f2dbfff8bc07f2a48ed4fe2658a40653aec0b54b, vars: {}, profile: , target: , version: 1.11.2
+[0m15:42:33.775088 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 1 files changed.
+[0m15:42:33.775378 [debug] [MainThread]: Partial parsing: updated file: dnc_semantic_layer://models/marts/dim_vehicles_metrics.sql
+[0m15:42:33.891609 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1095ecad0>]}
+[0m15:42:33.917652 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:42:33.918635 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:42:33.929414 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1096181d0>]}
+[0m15:42:33.929612 [info ] [MainThread]: Found 7 models, 8 sources, 464 macros
+[0m15:42:33.929749 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1095ef6b0>]}
+[0m15:42:33.930555 [info ] [MainThread]: 
+[0m15:42:33.930703 [info ] [MainThread]: Concurrency: 4 threads (target='dev')
+[0m15:42:33.930813 [info ] [MainThread]: 
+[0m15:42:33.931003 [debug] [MainThread]: Acquiring new postgres connection 'master'
+[0m15:42:33.932420 [debug] [ThreadPool]: Acquiring new postgres connection 'list_hpcl_ceg'
+[0m15:42:33.955622 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg"
+[0m15:42:33.955819 [debug] [ThreadPool]: On list_hpcl_ceg: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg"} */
+
+    select distinct nspname from pg_namespace
+  
+[0m15:42:33.955933 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m15:42:34.129344 [debug] [ThreadPool]: SQL status: SELECT 62 in 0.173 seconds
+[0m15:42:34.129986 [debug] [ThreadPool]: On list_hpcl_ceg: Close
+[0m15:42:34.130663 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_hpcl_ceg, now list_hpcl_ceg_public)
+[0m15:42:34.132804 [debug] [ThreadPool]: Using postgres connection "list_hpcl_ceg_public"
+[0m15:42:34.132951 [debug] [ThreadPool]: On list_hpcl_ceg_public: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "list_hpcl_ceg_public"} */
+select
+      'hpcl_ceg' as database,
+      tablename as name,
+      schemaname as schema,
+      'table' as type
+    from pg_tables
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      viewname as name,
+      schemaname as schema,
+      'view' as type
+    from pg_views
+    where schemaname ilike 'public'
+    union all
+    select
+      'hpcl_ceg' as database,
+      matviewname as name,
+      schemaname as schema,
+      'materialized_view' as type
+    from pg_matviews
+    where schemaname ilike 'public'
+  
+[0m15:42:34.133104 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m15:42:34.294716 [debug] [ThreadPool]: SQL status: SELECT 302 in 0.162 seconds
+[0m15:42:34.298585 [debug] [ThreadPool]: On list_hpcl_ceg_public: ROLLBACK
+[0m15:42:34.312865 [debug] [ThreadPool]: On list_hpcl_ceg_public: Close
+[0m15:42:34.357290 [debug] [MainThread]: Using postgres connection "master"
+[0m15:42:34.357496 [debug] [MainThread]: On master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "connection_name": "master"} */
+select distinct
+        dependent_namespace.nspname as dependent_schema,
+        dependent_class.relname as dependent_name,
+        referenced_namespace.nspname as referenced_schema,
+        referenced_class.relname as referenced_name
+
+    -- Query for views: views are entries in pg_class with an entry in pg_rewrite, but we avoid
+    -- a seq scan on pg_rewrite by leveraging the fact there is an "internal" row in pg_depend for
+    -- the view...
+    from pg_class as dependent_class
+    join pg_namespace as dependent_namespace on dependent_namespace.oid = dependent_class.relnamespace
+    join pg_depend as dependent_depend on dependent_depend.refobjid = dependent_class.oid
+        and dependent_depend.classid = 'pg_rewrite'::regclass
+        and dependent_depend.refclassid = 'pg_class'::regclass
+        and dependent_depend.deptype = 'i'
+
+    -- ... and via pg_depend (that has a row per column, hence the need for "distinct" above, and
+    -- making sure to exclude the internal row to avoid a view appearing to depend on itself)...
+    join pg_depend as joining_depend on joining_depend.objid = dependent_depend.objid
+        and joining_depend.classid = 'pg_rewrite'::regclass
+        and joining_depend.refclassid = 'pg_class'::regclass
+        and joining_depend.refobjid != dependent_depend.refobjid
+
+    -- ... we can find the tables they query from in pg_class, but excluding system tables. Note we
+    -- don't need need to exclude _dependent_ system tables, because they only query from other
+    -- system tables, and so are automatically excluded by excluding _referenced_ system tables
+    join pg_class as referenced_class on referenced_class.oid = joining_depend.refobjid
+    join pg_namespace as referenced_namespace on referenced_namespace.oid = referenced_class.relnamespace
+        and referenced_namespace.nspname != 'information_schema'
+        and referenced_namespace.nspname not like 'pg\_%'
+
+    order by
+        dependent_schema, dependent_name, referenced_schema, referenced_name;
+[0m15:42:34.357631 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m15:42:34.501234 [debug] [MainThread]: SQL status: SELECT 8 in 0.144 seconds
+[0m15:42:34.503043 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10ba663c0>]}
+[0m15:42:34.503354 [debug] [MainThread]: On master: ROLLBACK
+[0m15:42:34.521186 [debug] [MainThread]: On master: COMMIT
+[0m15:42:34.521392 [debug] [MainThread]: Using postgres connection "master"
+[0m15:42:34.521543 [debug] [MainThread]: On master: COMMIT
+[0m15:42:34.560428 [debug] [MainThread]: SQL status: COMMIT in 0.039 seconds
+[0m15:42:34.560677 [debug] [MainThread]: On master: Close
+[0m15:42:34.563550 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:42:34.563899 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:42:34.564155 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:42:34.564450 [info ] [Thread-1 (]: 1 of 7 START sql view model public.stg_vts_ongoing_trips ....................... [RUN]
+[0m15:42:34.564757 [info ] [Thread-2 (]: 2 of 7 START sql view model public.stg_vts_truck_master ........................ [RUN]
+[0m15:42:34.565017 [info ] [Thread-3 (]: 3 of 7 START sql view model public.stg_vts_vehicle_risk ........................ [RUN]
+[0m15:42:34.565293 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly list_hpcl_ceg_public, now model.dnc_semantic_layer.stg_vts_ongoing_trips)
+[0m15:42:34.565584 [debug] [Thread-2 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_truck_master'
+[0m15:42:34.565841 [debug] [Thread-3 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_vehicle_risk'
+[0m15:42:34.566064 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:42:34.566262 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:42:34.566449 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:42:34.571095 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.572525 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.573813 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.574327 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:42:34.574540 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:42:34.574741 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:42:34.595472 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.596063 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.598872 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.599296 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.599481 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.599627 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.599762 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned and Renamed Truck Master
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_truck_master"
+)
+
+SELECT
+    truck_no AS vehicle_id,
+    transporter_name,
+    transporter_code,
+    capacity_of_the_truck AS capacity,
+    COALESCE(whether_truck_blacklisted, 'N') = 'Y' AS is_blacklisted,
+    ownership_type,
+    region,
+    zone,
+    engine_no,
+    chassis_no,
+    last_changed_date AS last_updated_at
+FROM raw
+  );
+[0m15:42:34.599917 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Ongoing Trips
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_ongoing_trips"
+)
+
+SELECT
+    id AS trip_pk,
+    trip_id,
+    tt_number AS vehicle_id,
+    driver_name,
+    transporter_name,
+    invoice_no,
+    vehicle_location AS current_location,
+    violation_type AS current_violation_code,
+    event_start_datetime AS trip_started_at,
+    event_end_datetime AS trip_ended_at,
+    region,
+    zone,
+    bu,
+    sap_id
+FROM raw
+  );
+[0m15:42:34.600060 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp"
+    
+    
+  as (
+    -- Snapshot Vehicle Risk
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."tt_risk_score"
+)
+
+SELECT
+    tt_number AS vehicle_id,
+    risk_score AS current_risk_score,
+    transporter_name,
+    transporter_code,
+    total_trips AS lifetime_trips
+FROM raw
+  );
+[0m15:42:34.600196 [debug] [Thread-2 (]: Opening a new connection, currently in state init
+[0m15:42:34.600367 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:42:34.600483 [debug] [Thread-3 (]: Opening a new connection, currently in state init
+[0m15:42:34.754254 [debug] [Thread-3 (]: SQL status: CREATE VIEW in 0.154 seconds
+[0m15:42:34.758919 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.759123 [debug] [Thread-1 (]: SQL status: CREATE VIEW in 0.159 seconds
+[0m15:42:34.759304 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+alter table "hpcl_ceg"."public"."stg_vts_vehicle_risk" rename to "stg_vts_vehicle_risk__dbt_backup"
+[0m15:42:34.761236 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.761442 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips" rename to "stg_vts_ongoing_trips__dbt_backup"
+[0m15:42:34.762317 [debug] [Thread-2 (]: SQL status: CREATE VIEW in 0.162 seconds
+[0m15:42:34.764113 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.764261 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master" rename to "stg_vts_truck_master__dbt_backup"
+[0m15:42:34.780294 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:42:34.780478 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:42:34.781781 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.782893 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.783039 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+alter table "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_tmp" rename to "stg_vts_vehicle_risk"
+[0m15:42:34.783181 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+alter table "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_tmp" rename to "stg_vts_ongoing_trips"
+[0m15:42:34.783321 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.019 seconds
+[0m15:42:34.784569 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.784818 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+alter table "hpcl_ceg"."public"."stg_vts_truck_master__dbt_tmp" rename to "stg_vts_truck_master"
+[0m15:42:34.822259 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.039 seconds
+[0m15:42:34.822490 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.037 seconds
+[0m15:42:34.822640 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.039 seconds
+[0m15:42:34.829997 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:42:34.830748 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:42:34.831340 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:42:34.831489 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.831623 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.831752 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.831879 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: COMMIT
+[0m15:42:34.832002 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: COMMIT
+[0m15:42:34.832123 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: COMMIT
+[0m15:42:34.850857 [debug] [Thread-2 (]: SQL status: COMMIT in 0.019 seconds
+[0m15:42:34.851041 [debug] [Thread-3 (]: SQL status: COMMIT in 0.019 seconds
+[0m15:42:34.854116 [debug] [Thread-2 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup"
+[0m15:42:34.854284 [debug] [Thread-1 (]: SQL status: COMMIT in 0.022 seconds
+[0m15:42:34.855343 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup"
+[0m15:42:34.857481 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_truck_master"
+[0m15:42:34.858430 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup"
+[0m15:42:34.858728 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_vehicle_risk"
+[0m15:42:34.858875 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_truck_master"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_truck_master__dbt_backup" cascade
+[0m15:42:34.859150 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_ongoing_trips"
+[0m15:42:34.859289 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_vehicle_risk"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_vehicle_risk__dbt_backup" cascade
+[0m15:42:34.859468 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_ongoing_trips"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_ongoing_trips__dbt_backup" cascade
+[0m15:42:34.875820 [debug] [Thread-3 (]: SQL status: DROP VIEW in 0.016 seconds
+[0m15:42:34.877004 [debug] [Thread-3 (]: On model.dnc_semantic_layer.stg_vts_vehicle_risk: Close
+[0m15:42:34.877182 [debug] [Thread-2 (]: SQL status: DROP VIEW in 0.018 seconds
+[0m15:42:34.877355 [debug] [Thread-1 (]: SQL status: DROP VIEW in 0.018 seconds
+[0m15:42:34.878186 [debug] [Thread-2 (]: On model.dnc_semantic_layer.stg_vts_truck_master: Close
+[0m15:42:34.879055 [debug] [Thread-1 (]: On model.dnc_semantic_layer.stg_vts_ongoing_trips: Close
+[0m15:42:34.880056 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x103ea0530>]}
+[0m15:42:34.880200 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10963b5f0>]}
+[0m15:42:34.880334 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x109258320>]}
+[0m15:42:34.880596 [info ] [Thread-3 (]: 3 of 7 OK created sql view model public.stg_vts_vehicle_risk ................... [[32mCREATE VIEW[0m in 0.31s]
+[0m15:42:34.880829 [info ] [Thread-2 (]: 2 of 7 OK created sql view model public.stg_vts_truck_master ................... [[32mCREATE VIEW[0m in 0.31s]
+[0m15:42:34.881043 [info ] [Thread-1 (]: 1 of 7 OK created sql view model public.stg_vts_ongoing_trips .................. [[32mCREATE VIEW[0m in 0.31s]
+[0m15:42:34.881263 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.stg_vts_vehicle_risk
+[0m15:42:34.881451 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.stg_vts_truck_master
+[0m15:42:34.881631 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.stg_vts_ongoing_trips
+[0m15:42:34.881967 [debug] [Thread-4 (]: Began running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:42:34.882213 [info ] [Thread-4 (]: 4 of 7 START sql view model public.stg_vts_violation_history ................... [RUN]
+[0m15:42:34.882445 [debug] [Thread-4 (]: Acquiring new postgres connection 'model.dnc_semantic_layer.stg_vts_violation_history'
+[0m15:42:34.882596 [debug] [Thread-4 (]: Began compiling node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:42:34.885052 [debug] [Thread-4 (]: Writing injected SQL for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:34.885602 [debug] [Thread-4 (]: Began executing node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:42:34.888462 [debug] [Thread-4 (]: Writing runtime sql for node "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:34.888757 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:34.888909 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+
+  create view "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp"
+    
+    
+  as (
+    -- Cleaned Violation History
+WITH raw AS (
+    SELECT * FROM "hpcl_ceg"."public"."vts_alert_history"
+),
+
+truck_master AS (
+    SELECT vehicle_id, transporter_name, transporter_code
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+)
+
+SELECT
+    r.id AS event_id,
+    r.tl_number AS vehicle_id,
+    tm.transporter_name,
+    tm.transporter_code,
+    r.vts_end_datetime AS event_at,
+    r.total_trips,
+    -- Pre-calculate the total violations metric
+    (COALESCE(r.stoppage_violations_count, 0) + 
+     COALESCE(r.route_deviation_count, 0) + 
+     COALESCE(r.speed_violation_count, 0) + 
+     COALESCE(r.night_driving_count, 0) + 
+     COALESCE(r.device_offline_count, 0) + 
+     COALESCE(r.device_tamper_count, 0) + 
+     COALESCE(r.continuous_driving_count, 0) + 
+     COALESCE(r.no_halt_zone_count, 0) + 
+     COALESCE(r.main_supply_removal_count, 0)) AS total_violations_count,
+    r.stoppage_violations_count,
+    r.route_deviation_count,
+    r.speed_violation_count,
+    r.night_driving_count,
+    r.violation_type AS violation_tags, -- original array
+    r.region,
+    r.bu,
+    r.zone,
+    r.location_name
+FROM raw r
+LEFT JOIN truck_master tm ON r.tl_number = tm.vehicle_id
+  );
+[0m15:42:34.889058 [debug] [Thread-4 (]: Opening a new connection, currently in state init
+[0m15:42:35.065016 [debug] [Thread-4 (]: SQL status: CREATE VIEW in 0.176 seconds
+[0m15:42:35.066598 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:35.066806 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+alter table "hpcl_ceg"."public"."stg_vts_violation_history__dbt_tmp" rename to "stg_vts_violation_history"
+[0m15:42:35.083101 [debug] [Thread-4 (]: SQL status: ALTER TABLE in 0.016 seconds
+[0m15:42:35.083841 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:42:35.084033 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:35.084180 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: COMMIT
+[0m15:42:35.100532 [debug] [Thread-4 (]: SQL status: COMMIT in 0.016 seconds
+[0m15:42:35.101793 [debug] [Thread-4 (]: Applying DROP to: "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup"
+[0m15:42:35.102141 [debug] [Thread-4 (]: Using postgres connection "model.dnc_semantic_layer.stg_vts_violation_history"
+[0m15:42:35.102301 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.stg_vts_violation_history"} */
+drop view if exists "hpcl_ceg"."public"."stg_vts_violation_history__dbt_backup" cascade
+[0m15:42:35.122208 [debug] [Thread-4 (]: SQL status: DROP VIEW in 0.020 seconds
+[0m15:42:35.122875 [debug] [Thread-4 (]: On model.dnc_semantic_layer.stg_vts_violation_history: Close
+[0m15:42:35.123239 [debug] [Thread-4 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x109504800>]}
+[0m15:42:35.123536 [info ] [Thread-4 (]: 4 of 7 OK created sql view model public.stg_vts_violation_history .............. [[32mCREATE VIEW[0m in 0.24s]
+[0m15:42:35.123797 [debug] [Thread-4 (]: Finished running node model.dnc_semantic_layer.stg_vts_violation_history
+[0m15:42:35.124176 [debug] [Thread-2 (]: Began running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:42:35.124370 [debug] [Thread-1 (]: Began running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:42:35.124782 [debug] [Thread-3 (]: Began running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:42:35.124628 [info ] [Thread-2 (]: 5 of 7 START sql table model public.dim_transporters_metrics ................... [RUN]
+[0m15:42:35.124977 [info ] [Thread-1 (]: 6 of 7 START sql table model public.dim_vehicles_metrics ....................... [RUN]
+[0m15:42:35.125339 [info ] [Thread-3 (]: 7 of 7 START sql table model public.fct_violation_trends ....................... [RUN]
+[0m15:42:35.125615 [debug] [Thread-2 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_truck_master, now model.dnc_semantic_layer.dim_transporters_metrics)
+[0m15:42:35.125801 [debug] [Thread-1 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_ongoing_trips, now model.dnc_semantic_layer.dim_vehicles_metrics)
+[0m15:42:35.125963 [debug] [Thread-3 (]: Re-using an available connection from the pool (formerly model.dnc_semantic_layer.stg_vts_vehicle_risk, now model.dnc_semantic_layer.fct_violation_trends)
+[0m15:42:35.126126 [debug] [Thread-2 (]: Began compiling node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:42:35.126281 [debug] [Thread-1 (]: Began compiling node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:42:35.126415 [debug] [Thread-3 (]: Began compiling node model.dnc_semantic_layer.fct_violation_trends
+[0m15:42:35.128130 [debug] [Thread-2 (]: Writing injected SQL for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:35.129539 [debug] [Thread-1 (]: Writing injected SQL for node "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:35.130673 [debug] [Thread-3 (]: Writing injected SQL for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:35.132027 [debug] [Thread-2 (]: Began executing node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:42:35.138479 [debug] [Thread-3 (]: Began executing node model.dnc_semantic_layer.fct_violation_trends
+[0m15:42:35.143063 [debug] [Thread-2 (]: Writing runtime sql for node "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:35.143227 [debug] [Thread-1 (]: Began executing node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:42:35.145902 [debug] [Thread-3 (]: Writing runtime sql for node "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:35.148518 [debug] [Thread-1 (]: Writing runtime sql for node "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:35.148821 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:35.148971 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."dim_transporters_metrics__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- Transporter Performance Mart
+WITH transporter_master AS (
+    SELECT DISTINCT transporter_code, transporter_name
+    FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+),
+
+fleet_risk AS (
+    SELECT * FROM "hpcl_ceg"."public"."transporter_risk_score"
+),
+
+violation_totals AS (
+    SELECT 
+        v.transporter_name,
+        SUM(total_violations_count) AS fleet_violations,
+        COUNT(DISTINCT vehicle_id) AS vehicle_count
+    FROM "hpcl_ceg"."public"."stg_vts_violation_history" v
+    GROUP BY 1
+)
+
+SELECT
+    tm.transporter_name,
+    tm.transporter_code,
+    fr.risk_score AS current_fleet_risk,
+    vt.fleet_violations,
+    vt.vehicle_count,
+    ROUND(CAST(vt.fleet_violations AS NUMERIC) / NULLIF(vt.vehicle_count, 0), 2) AS violations_per_vehicle
+FROM transporter_master tm
+LEFT JOIN fleet_risk fr ON tm.transporter_code = fr.transporter_code
+LEFT JOIN violation_totals vt ON tm.transporter_name = vt.transporter_name
+  );
+  
+[0m15:42:35.149111 [debug] [Thread-2 (]: Opening a new connection, currently in state closed
+[0m15:42:35.149327 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:35.149517 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- AI ready Violation Trends
+SELECT
+    vehicle_id,
+    region,
+    zone,
+    event_at::DATE AS violation_date,
+    total_violations_count,
+    stoppage_violations_count,
+    route_deviation_count,
+    speed_violation_count,
+    night_driving_count
+FROM "hpcl_ceg"."public"."stg_vts_violation_history"
+  );
+  
+[0m15:42:35.150453 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:35.150582 [debug] [Thread-3 (]: Opening a new connection, currently in state closed
+[0m15:42:35.150734 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_vehicles_metrics"} */
+
+  
+    
+
+  create  table "hpcl_ceg"."public"."dim_vehicles_metrics__dbt_tmp"
+  
+  
+    as
+  
+  (
+    -- The "Golden Record" for Al - combining Master info with current Risk and Violations
+WITH vehicles AS (
+    SELECT * FROM "hpcl_ceg"."public"."stg_vts_truck_master"
+),
+
+risk AS (
+    SELECT * FROM "hpcl_ceg"."public"."stg_vts_vehicle_risk"
+),
+
+violations_summary AS (
+    SELECT 
+        vehicle_id,
+        SUM(total_violations_count) AS lifetime_violations,
+        MAX(event_at) AS last_violation_at
+    FROM "hpcl_ceg"."public"."stg_vts_violation_history"
+    GROUP BY 1
+)
+
+SELECT
+    v.vehicle_id,
+    v.transporter_name,
+    v.region,
+    v.zone,
+    v.is_blacklisted,
+    v.capacity,
+    COALESCE(r.current_risk_score, 0) AS current_risk_score,
+    COALESCE(vs.lifetime_violations, 0) AS total_violations_count,
+    vs.last_violation_at
+FROM vehicles v
+LEFT JOIN risk r ON v.vehicle_id = r.vehicle_id
+LEFT JOIN violations_summary vs ON v.vehicle_id = vs.vehicle_id
+  );
+  
+[0m15:42:35.151005 [debug] [Thread-1 (]: Opening a new connection, currently in state closed
+[0m15:42:36.329106 [debug] [Thread-1 (]: SQL status: SELECT 73211 in 1.178 seconds
+[0m15:42:36.332187 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:36.332352 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_vehicles_metrics"} */
+alter table "hpcl_ceg"."public"."dim_vehicles_metrics__dbt_tmp" rename to "dim_vehicles_metrics"
+[0m15:42:36.349191 [debug] [Thread-1 (]: SQL status: ALTER TABLE in 0.017 seconds
+[0m15:42:36.349842 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: COMMIT
+[0m15:42:36.349978 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:36.350090 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: COMMIT
+[0m15:42:36.406562 [debug] [Thread-1 (]: SQL status: COMMIT in 0.056 seconds
+[0m15:42:36.407764 [debug] [Thread-1 (]: Applying DROP to: "hpcl_ceg"."public"."dim_vehicles_metrics__dbt_backup"
+[0m15:42:36.409140 [debug] [Thread-1 (]: Using postgres connection "model.dnc_semantic_layer.dim_vehicles_metrics"
+[0m15:42:36.409307 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_vehicles_metrics"} */
+drop table if exists "hpcl_ceg"."public"."dim_vehicles_metrics__dbt_backup" cascade
+[0m15:42:36.423623 [debug] [Thread-1 (]: SQL status: DROP TABLE in 0.014 seconds
+[0m15:42:36.424269 [debug] [Thread-1 (]: On model.dnc_semantic_layer.dim_vehicles_metrics: Close
+[0m15:42:36.424618 [debug] [Thread-1 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10922e900>]}
+[0m15:42:36.424913 [info ] [Thread-1 (]: 6 of 7 OK created sql table model public.dim_vehicles_metrics .................. [[32mSELECT 73211[0m in 1.30s]
+[0m15:42:36.425159 [debug] [Thread-1 (]: Finished running node model.dnc_semantic_layer.dim_vehicles_metrics
+[0m15:42:39.018637 [debug] [Thread-2 (]: SQL status: SELECT 23668 in 3.869 seconds
+[0m15:42:39.024533 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:39.024967 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+alter table "hpcl_ceg"."public"."dim_transporters_metrics" rename to "dim_transporters_metrics__dbt_backup"
+[0m15:42:39.048986 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.024 seconds
+[0m15:42:39.051575 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:39.051859 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+alter table "hpcl_ceg"."public"."dim_transporters_metrics__dbt_tmp" rename to "dim_transporters_metrics"
+[0m15:42:39.065794 [debug] [Thread-2 (]: SQL status: ALTER TABLE in 0.014 seconds
+[0m15:42:39.066954 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: COMMIT
+[0m15:42:39.067256 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:39.067464 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: COMMIT
+[0m15:42:39.124010 [debug] [Thread-2 (]: SQL status: COMMIT in 0.056 seconds
+[0m15:42:39.126230 [debug] [Thread-2 (]: Applying DROP to: "hpcl_ceg"."public"."dim_transporters_metrics__dbt_backup"
+[0m15:42:39.126806 [debug] [Thread-2 (]: Using postgres connection "model.dnc_semantic_layer.dim_transporters_metrics"
+[0m15:42:39.127102 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.dim_transporters_metrics"} */
+drop table if exists "hpcl_ceg"."public"."dim_transporters_metrics__dbt_backup" cascade
+[0m15:42:39.149121 [debug] [Thread-2 (]: SQL status: DROP TABLE in 0.022 seconds
+[0m15:42:39.150211 [debug] [Thread-2 (]: On model.dnc_semantic_layer.dim_transporters_metrics: Close
+[0m15:42:39.150915 [debug] [Thread-2 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b9ea270>]}
+[0m15:42:39.151448 [info ] [Thread-2 (]: 5 of 7 OK created sql table model public.dim_transporters_metrics .............. [[32mSELECT 23668[0m in 4.03s]
+[0m15:42:39.151840 [debug] [Thread-2 (]: Finished running node model.dnc_semantic_layer.dim_transporters_metrics
+[0m15:42:39.499743 [debug] [Thread-3 (]: SQL status: SELECT 1658003 in 4.349 seconds
+[0m15:42:39.507299 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:39.507841 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+alter table "hpcl_ceg"."public"."fct_violation_trends" rename to "fct_violation_trends__dbt_backup"
+[0m15:42:39.535037 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.027 seconds
+[0m15:42:39.539939 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:39.540421 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+alter table "hpcl_ceg"."public"."fct_violation_trends__dbt_tmp" rename to "fct_violation_trends"
+[0m15:42:39.555581 [debug] [Thread-3 (]: SQL status: ALTER TABLE in 0.015 seconds
+[0m15:42:39.557862 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:42:39.558272 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:39.558596 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: COMMIT
+[0m15:42:39.607030 [debug] [Thread-3 (]: SQL status: COMMIT in 0.048 seconds
+[0m15:42:39.610744 [debug] [Thread-3 (]: Applying DROP to: "hpcl_ceg"."public"."fct_violation_trends__dbt_backup"
+[0m15:42:39.611778 [debug] [Thread-3 (]: Using postgres connection "model.dnc_semantic_layer.fct_violation_trends"
+[0m15:42:39.612161 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: /* {"app": "dbt", "dbt_version": "1.11.2", "profile_name": "dnc_db", "target_name": "dev", "node_id": "model.dnc_semantic_layer.fct_violation_trends"} */
+drop table if exists "hpcl_ceg"."public"."fct_violation_trends__dbt_backup" cascade
+[0m15:42:39.651098 [debug] [Thread-3 (]: SQL status: DROP TABLE in 0.039 seconds
+[0m15:42:39.652478 [debug] [Thread-3 (]: On model.dnc_semantic_layer.fct_violation_trends: Close
+[0m15:42:39.653203 [debug] [Thread-3 (]: Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '7e0c0367-c87c-43f0-a667-0c780f6a65f4', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10bac85f0>]}
+[0m15:42:39.653848 [info ] [Thread-3 (]: 7 of 7 OK created sql table model public.fct_violation_trends .................. [[32mSELECT 1658003[0m in 4.53s]
+[0m15:42:39.654300 [debug] [Thread-3 (]: Finished running node model.dnc_semantic_layer.fct_violation_trends
+[0m15:42:39.655475 [debug] [MainThread]: On master: COMMIT
+[0m15:42:39.655814 [debug] [MainThread]: Using postgres connection "master"
+[0m15:42:39.656049 [debug] [MainThread]: On master: COMMIT
+[0m15:42:39.656256 [debug] [MainThread]: Opening a new connection, currently in state closed
+[0m15:42:39.847003 [debug] [MainThread]: SQL status: COMMIT in 0.191 seconds
+[0m15:42:39.847333 [debug] [MainThread]: On master: Close
+[0m15:42:39.847721 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m15:42:39.847901 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.dim_vehicles_metrics' was properly closed.
+[0m15:42:39.848057 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.dim_transporters_metrics' was properly closed.
+[0m15:42:39.848211 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.fct_violation_trends' was properly closed.
+[0m15:42:39.848357 [debug] [MainThread]: Connection 'model.dnc_semantic_layer.stg_vts_violation_history' was properly closed.
+[0m15:42:39.848590 [info ] [MainThread]: 
+[0m15:42:39.848794 [info ] [MainThread]: Finished running 3 table models, 4 view models in 0 hours 0 minutes and 5.92 seconds (5.92s).
+[0m15:42:39.849613 [debug] [MainThread]: Command end result
+[0m15:42:39.863964 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/manifest.json
+[0m15:42:39.864913 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/semantic_manifest.json
+[0m15:42:39.867837 [debug] [MainThread]: Wrote artifact RunExecutionResult to /Users/algofusion/Documents/dnc_backend_v2/orchestrator/gen_ai/DBT_Layer/target/run_results.json
+[0m15:42:39.868035 [info ] [MainThread]: 
+[0m15:42:39.868223 [info ] [MainThread]: [32mCompleted successfully[0m
+[0m15:42:39.868359 [info ] [MainThread]: 
+[0m15:42:39.868506 [info ] [MainThread]: Done. PASS=7 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=7
+[0m15:42:39.870430 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": true, "command_wall_clock_time": 6.385689, "process_in_blocks": "0", "process_kernel_time": 0.194972, "process_mem_max_rss": "139526144", "process_out_blocks": "0", "process_user_time": 1.133443}
+[0m15:42:39.870759 [debug] [MainThread]: Command `dbt run` succeeded at 15:42:39.870701 after 6.39 seconds
+[0m15:42:39.870952 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x108398350>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x108398380>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1072dc350>]}
+[0m15:42:39.871120 [debug] [MainThread]: Flushing usage events
+[0m15:42:41.131108 [debug] [MainThread]: An error was encountered while trying to flush usage events
+==================== 2026-01-23T12:57:03.931257Z | 019beaed-fcb9-7682-b40b-dc9e8f6561a5 ====================
+12:57:11.835627 [info ]: 
+==================== Execution Summary =====================
+Finished 'init' successfully [7.9s]

@@ -1,0 +1,625 @@
+[
+  {
+    "question": "Find the total number of device_offline_count incidents per BU last quarter",
+    "sql": "SELECT 'vts_alert_history' AS \"Data Table\", bu, SUM(device_offline_count) AS total_device_offline FROM vts_alert_history WHERE vts_end_datetime >= DATE_TRUNC('quarter', CURRENT_DATE) - INTERVAL '3 months' AND vts_end_datetime < DATE_TRUNC('quarter', CURRENT_DATE) GROUP BY bu ORDER BY total_device_offline DESC NULLS LAST",
+    "query_type": "general",
+    "source_model": "full_context_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 3
+  },
+  {
+    "question": "Find top 10 locations with highest route deviation count in last month",
+    "sql": "SELECT 'vts_alert_history' AS \"Data Table\", location_name, SUM(route_deviation_count) AS total_route_deviations FROM vts_alert_history WHERE vts_end_datetime >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND vts_end_datetime < DATE_TRUNC('month', CURRENT_DATE) GROUP BY location_name ORDER BY total_route_deviations DESC LIMIT 10",
+    "query_type": "general",
+    "source_model": "cache_hit (few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest)",
+    "row_count": 10
+  },
+  {
+    "question": "Find transporters whose vehicles generated alerts in last 7 days",
+    "sql": "SELECT tm.transporter_name FROM vts_truck_master tm JOIN alerts a ON tm.truck_no = a.vehicle_number WHERE a.created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY tm.transporter_name ORDER BY tm.transporter_name NULLS LAST",
+    "query_type": "general",
+    "source_model": "full_context_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 4577
+  },
+  {
+    "question": "Find transporters and his vehicles generated alerts in last 7 days",
+    "sql": "SELECT tm.transporter_name FROM vts_truck_master tm JOIN alerts a ON tm.truck_no = a.vehicle_number WHERE a.created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY tm.transporter_name ORDER BY tm.transporter_name NULLS LAST",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 4577
+  },
+  {
+    "question": "Vehicles with multiple ongoing trips",
+    "sql": "SELECT vtm.truck_no, COUNT(vot.tt_number) AS trip_count FROM vts_truck_master vtm JOIN vts_ongoing_trips vot ON vtm.truck_no = vot.tt_number GROUP BY vtm.truck_no HAVING COUNT(vot.tt_number) > 1 ORDER BY trip_count DESC NULLS LAST",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 10293
+  },
+  {
+    "question": "give Vehicles that were unblocked but never had any alert",
+    "sql": "SELECT vtm.truck_no, vah.violation_type FROM vts_truck_master vtm LEFT JOIN vts_alert_history vah ON vtm.truck_no = vah.tl_number WHERE vah.vts_end_datetime IS NULL",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 52520
+  },
+  {
+    "question": "What columns are in the vts_alert_history table",
+    "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'vts_alert_history' ORDER BY ordinal_position",
+    "query_type": "general",
+    "source_model": "training_data_exact",
+    "row_count": 40
+  },
+  {
+    "question": "Find the vehicle and transporter for invoice 9015941411-ZF23-1292",
+    "sql": "SELECT\n    'vts_alert_history' AS \"Source\",\n    vah.tl_number AS vehicle,\n    vtm.transporter_name\nFROM vts_alert_history vah\nJOIN vts_truck_master vtm ON vah.tl_number = vtm.truck_no\nWHERE vah.invoice_number ILIKE '9015941411-ZF23-1292'\nUNION ALL\nSELECT\n    'vts_ongoing_trips' AS \"Source\",\n    vot.tt_number AS vehicle,\n    vot.transporter_name\nFROM vts_ongoing_trips vot\nWHERE vot.invoice_no ILIKE '9015941411-ZF23-1292'",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 1
+  },
+  {
+    "question": "List vehicles with a risk score greater than 90",
+    "sql": "SELECT 'tt_risk_score' AS \"Data Table\",\n    tt_number,\n    risk_score,\n    total_trips \nFROM tt_risk_score\nWHERE risk_score > 90 AND tt_number IS NOT NULL\nORDER BY risk_score DESC",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 34
+  },
+  {
+    "question": "Describe the structure of the alerts table",
+    "sql": "SELECT column_name, data_type, column_default FROM information_schema.columns WHERE table_name = 'alerts' ORDER BY ordinal_position",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 99
+  },
+  {
+    "question": "Compare the number of active trips in 'North' zone vs 'South' zone",
+    "sql": "SELECT COUNT(*) AS north_trips FROM vts_ongoing_trips vot WHERE vot.zone = 'North' UNION ALL SELECT COUNT(*) AS south_trips FROM vts_ongoing_trips vot WHERE vot.zone = 'South'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 2
+  },
+  {
+    "question": "How many open critical alerts are there right now",
+    "sql": "SELECT COUNT(*) AS number_of_open_critical_alerts FROM alerts a WHERE a.alert_status = 'Open' AND a.severity = 'CRITICAL'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "Vehicles with violations but no alerts generated",
+    "sql": "SELECT vtm.truck_no FROM vts_truck_master vtm LEFT JOIN vts_alert_history vah ON vtm.truck_no = vah.tl_number WHERE vah.vts_end_datetime IS NULL",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 52520
+  },
+  {
+    "question": "Count of violations by violation type",
+    "sql": "SELECT vah.violation_type, COUNT(*) AS total_violations FROM vts_alert_history vah WHERE vah.violation_type IS NOT NULL GROUP BY vah.violation_type ORDER BY total_violations DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 121
+  },
+  {
+    "question": "Find vehicles that have had both a 'Power Disconnect' alert and a 'Swipe Out Failure' in the last 30 days",
+    "sql": "SELECT DISTINCT vtm.truck_no FROM vts_truck_master vtm JOIN vts_alert_history vah ON vtm.truck_no = vah.tl_number WHERE (vah.main_supply_removal_count > 0 AND NOT EXISTS (SELECT 1 FROM vts_tripauditmaster tam WHERE tam.trucknumber = vah.tl_number AND (tam.swipeoutl1 = 'False' OR tam.swipeoutl2 = 'False') AND tam.createdat >= CURRENT_DATE - INTERVAL '30 days')) ORDER BY vtm.truck_no NULLS LAST",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 5758
+  },
+  {
+    "question": "Show details of ongoing trips where the driver name is missing or null",
+    "sql": "SELECT vtm.truck_no, vot.driver_name FROM vts_ongoing_trips vot JOIN vts_truck_master vtm ON vot.tt_number = vtm.truck_no WHERE vot.driver_name IS NULL OR vot.driver_name = ''",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 162153
+  },
+  {
+    "question": "What is the percentage of 'Open' alerts that are of 'High' severity",
+    "sql": "SELECT CAST(COUNT(*) AS FLOAT) / NULLIF((SELECT COUNT(*) FROM alerts WHERE alert_status = 'OPEN' AND severity = 'HIGH'), 0) AS proportion_high_severity_open_alerts FROM alerts WHERE alert_status = 'OPEN' AND severity = 'HIGH'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "What is the total count of 'Route Deviation' violations for vehicles with a capacity less than 10000",
+    "sql": "SELECT COUNT(*) AS total_route_deviations FROM vts_alert_history WHERE route_deviation_count > 0 AND (SELECT capacity_of_the_truck FROM vts_truck_master WHERE truck_no = tl_number) < 10000",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "Show vehicles with risk below 30",
+    "sql": "SELECT tt_number FROM tt_risk_score WHERE risk_score < 30",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 15623
+  },
+  {
+    "question": "Show the 10 vehicles with highest risk",
+    "sql": "SELECT 'tt_risk_score' AS \"Data Table\",\n    tt_number,\n    risk_score,\n    transporter_name \nFROM tt_risk_score\nWHERE risk_score IS NOT NULL AND tt_number IS NOT NULL ORDER BY risk_score DESC\nLIMIT 10",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 10
+  },
+  {
+    "question": "How many unique transporters are operating in the North zone",
+    "sql": "SELECT COUNT(DISTINCT vtm.transporter_name) FROM vts_truck_master vtm WHERE LOWER(vtm.zone) = 'north'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "How many active drivers are currently online",
+    "sql": "SELECT COUNT(DISTINCT driver_name) AS active_drivers FROM vts_ongoing_trips",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "Compare night driving safety between weekdays and weekends",
+    "sql": "SELECT 'vts_alert_history' AS \"Data Table\", tl_number, SUM(CASE WHEN EXTRACT(dow FROM vts_end_datetime) IN (0, 6) THEN night_driving_count ELSE 0 END) AS weekend_violations, SUM(CASE WHEN EXTRACT(dow FROM vts_end_datetime) NOT IN (0, 6) THEN night_driving_count ELSE 0 END) AS weekday_violations FROM vts_alert_history WHERE vts_end_datetime >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND vts_end_datetime < DATE_TRUNC('month', CURRENT_DATE) GROUP BY tl_number ORDER BY weekend_violations DESC, weekday_violations ASC LIMIT 10",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 10
+  },
+  {
+    "question": "Which zones need 'immediate attention'",
+    "sql": "SELECT 'vts_alert_history' AS \"Data Table\", zone, COUNT(DISTINCT tl_number) as vehicles, SUM(stoppage_violations_count) as stoppage_violations, SUM(route_deviation_count) as route_deviations, SUM(speed_violation_count) as speed_violations, SUM(night_driving_count) as night_driving, SUM(device_offline_count) as device_offline, SUM(device_tamper_count) as device_tamper, SUM(continuous_driving_count) as continuous_driving, SUM(no_halt_zone_count) as no_halt_zone, SUM(main_supply_removal_count) as main_supply_removal FROM vts_alert_history WHERE zone IS NOT NULL AND (stoppage_violations_count + route_deviation_count + speed_violation_count + night_driving_count + device_offline_count + device_tamper_count + continuous_driving_count + no_halt_zone_count + main_supply_removal_count) > 5 GROUP BY zone ORDER BY stoppage_violations DESC, route_deviations DESC, speed_violations DESC, night_driving DESC, device_offline DESC, device_tamper DESC, continuous_driving DESC, no_halt_zone DESC, main_supply_removal DESC LIMIT 10",
+    "query_type": "general",
+    "source_model": "full_context_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 10
+  },
+  {
+    "question": "Which transporters have more than 50 vehicles",
+    "sql": "SELECT vtm.transporter_name FROM vts_truck_master vtm GROUP BY vtm.transporter_name HAVING COUNT(vtm.truck_no) > 50 ORDER BY vtm.transporter_name NULLS LAST",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 14
+  },
+  {
+    "question": "Transporter-wise vehicle count",
+    "sql": "SELECT tm.transporter_name, COUNT(DISTINCT vah.tl_number) AS vehicle_count FROM vts_truck_master tm JOIN vts_alert_history vah ON tm.truck_no = vah.tl_number GROUP BY tm.transporter_name ORDER BY vehicle_count DESC NULLS LAST",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 9287
+  },
+  {
+    "question": "Vehicles that never generated any alerts",
+    "sql": "SELECT vtm.truck_no FROM vts_truck_master vtm WHERE NOT EXISTS (SELECT 1 FROM alerts a WHERE a.vehicle_number = vtm.truck_no)",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 57644
+  },
+  {
+    "question": "How many open alerts are there right now",
+    "sql": "SELECT COUNT(*) AS number_of_open_alerts FROM alerts a WHERE a.alert_status = 'Open' AND a.severity IN ('Critical', 'High', 'Medium', 'Low') AND a.alert_category NOT LIKE '%Device Offline%' AND a.alert_category NOT LIKE '%Device Tamper%' AND a.alert_category NOT LIKE '%Power Disconnect%' AND a.alert_category NOT LIKE '%SOS%' AND a.alert_category NOT LIKE '%Over Speed%'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 1
+  },
+  {
+    "question": "List all High severity alerts in last week",
+    "sql": "SELECT 'alerts' AS \"Data Table\", a.alert_category, a.location_name FROM alerts a WHERE a.severity = 'High' AND a.created_at >= CURRENT_DATE - INTERVAL '7 days' ORDER BY a.created_at DESC",
+    "query_type": "general",
+    "source_model": "full_context_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 22272
+  },
+  {
+    "question": "Alerts that are closed and open at same time",
+    "sql": "SELECT 'alerts' AS \"Data Table\", a.vehicle_number, a.alert_category, a.created_at, a.closed_at FROM alerts a WHERE a.alert_status = 'Open' AND a.closed_at IS NOT NULL",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 5
+  },
+  {
+    "question": "Which transporters had increasing violations from previous month to this month",
+    "sql": "SELECT tm.transporter_name, COUNT(DISTINCT vah.tl_number) AS vehicle_count, SUM(vah.stoppage_violations_count) AS total_stoppage, SUM(vah.route_deviation_count) AS total_route_deviations FROM vts_truck_master tm JOIN vts_alert_history vah ON tm.truck_no = vah.tl_number WHERE vah.vts_end_datetime >= CURRENT_DATE - INTERVAL '30 days' AND (vah.stoppage_violations_count > 0 OR vah.route_deviation_count > 0) GROUP BY tm.transporter_name HAVING SUM(vah.stoppage_violations_count) + SUM(vah.route_deviation_count) > 10 ORDER BY total_stoppage DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_mannix/defog-llama3-sqlcoder-8b:latest",
+    "row_count": 108
+  },
+  {
+    "question": "Show top 5 transporters by total risk score components in the last 6 months",
+    "sql": "-- The user asked for historical 'risk components', which are not stored historically.\n-- The best interpretation is to sum the historical 'risk_score' from the 'completed_trips_risk_score' table as a proxy for total risk over the period.\nSELECT\n    vtm.transporter_name,\n    SUM(ctrs.risk_score) AS total_historical_risk_score\nFROM completed_trips_risk_score AS ctrs\nJOIN vts_truck_master AS vtm ON ctrs.transporter_code = vtm.transporter_code\nWHERE\n    ctrs.scheduled_trip_end_datetime::TIMESTAMP >= CURRENT_DATE - INTERVAL '6 months'\nGROUP BY\n    vtm.transporter_name\nORDER BY\n    total_historical_risk_score DESC\nLIMIT 5;",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 5
+  },
+  {
+    "question": "Top 10 highest risk vehicles",
+    "sql": "SELECT 'tt_risk_score' AS \"Data Table\",\n    tt_number,\n    risk_score,\n    transporter_name \nFROM tt_risk_score\nWHERE risk_score IS NOT NULL AND tt_number IS NOT NULL ORDER BY risk_score DESC\nLIMIT 10",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 10
+  },
+  {
+    "question": "Vehicles whose risk is increasing month over month",
+    "sql": "WITH monthly_risk AS (\n    SELECT\n        trs.tt_number,\n        DATE_TRUNC('month', ctrs.scheduled_trip_end_datetime::timestamp) AS month,\n        AVG(trs.risk_score) AS avg_risk_score\n    FROM tt_risk_score trs\n    JOIN completed_trips_risk_score ctrs ON trs.tt_number = ctrs.tt_number\n    WHERE ctrs.scheduled_trip_end_datetime IS NOT NULL\n    GROUP BY trs.tt_number, DATE_TRUNC('month', ctrs.scheduled_trip_end_datetime::timestamp)\n),\nrisk_trends AS (\n    SELECT\n        tt_number,\n        month,\n        avg_risk_score,\n        LAG(avg_risk_score, 1, 0) OVER (PARTITION BY tt_number ORDER BY month) AS previous_month_risk\n    FROM monthly_risk\n),\ntrend_check AS (\n    SELECT\n        tt_number,\n        CASE WHEN avg_risk_score > previous_month_risk THEN 1 ELSE 0 END AS is_increasing,\n        COUNT(*) OVER (PARTITION BY tt_number) AS num_months\n    FROM risk_trends\n)\nSELECT\n    tt_number\nFROM trend_check\nGROUP BY tt_number, num_months\nHAVING SUM(is_increasing) = num_months - 1 AND num_months > 1\nORDER BY tt_number\nLIMIT 100",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 100
+  },
+  {
+    "question": "Show me alerts that are open but were never escalated",
+    "sql": "SELECT \n    a.vehicle_number, \n    a.alert_category, \n    a.severity, \n    a.created_at\nFROM \n    alerts a\nWHERE \n    a.alert_status = 'Open'\n    AND a.alert_section = 'VTS'\n    AND a.r2_time IS NULL\n    AND a.r3_time IS NULL\nORDER BY \n    a.created_at ASC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 150
+  },
+  {
+    "question": "Any vehicles stuck with the same alert for more than 2 days",
+    "sql": "SELECT\n    a.vehicle_number,\n    a.transporter_name,\n    a.alert_category,\n    a.created_at AS alert_start_time,\n    (CURRENT_DATE - a.created_at::date) AS days_with_alert\nFROM alerts a\nWHERE a.alert_status = 'Open'\n  AND a.alert_section = 'VTS'\n  AND (CURRENT_DATE - a.created_at::date) > 2\nORDER BY days_with_alert DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 150
+  },
+  {
+    "question": "How many alerts were marked false last week, region-wise",
+    "sql": "SELECT\n    a.region,\n    COUNT(*) AS marked_as_false_count\nFROM alerts a\nWHERE a.mark_as_false = true\n  AND a.alert_section = 'VTS'\n  AND a.created_at >= CURRENT_DATE - INTERVAL '7 days'\nGROUP BY a.region\nORDER BY a.region",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 5
+  },
+  {
+    "question": "Which alerts were closed but reopened again",
+    "sql": "SELECT \n    a.vehicle_number, \n    a.alert_category, \n    a.created_at, \n    a.closed_at\nFROM \n    alerts a\nWHERE \n    a.alert_section = 'VTS'\n    AND a.alert_status = 'Open'\n    AND EXISTS (\n        SELECT 1 \n        FROM alerts a2 \n        WHERE a2.vehicle_number = a.vehicle_number \n        AND a2.alert_section = 'VTS'\n        AND a2.alert_status = 'Close'\n        AND a2.closed_at < a.created_at\n    )\nORDER BY \n    a.created_at ASC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 113
+  },
+  {
+    "question": "Show vehicles where violations reduced compared to last month",
+    "sql": "SELECT vtm.truck_no AS vehicle_number, \n       SUM(vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count + vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count + vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count) AS total_violations\nFROM vts_alert_history vah\nJOIN vts_truck_master vtm ON vah.tl_number = vtm.truck_no\nWHERE vah.vts_end_datetime >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '2 months') AND vah.vts_end_datetime < DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')\nGROUP BY vtm.truck_no\nHAVING SUM(vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count + vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count + vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count) < \n    (SELECT SUM(vah2.stoppage_violations_count + vah2.route_deviation_count + vah2.speed_violation_count + vah2.night_driving_count + vah2.device_offline_count + vah2.device_tamper_count + vah2.continuous_driving_count + vah2.no_halt_zone_count + vah2.main_supply_removal_count) \n     FROM vts_alert_history vah2\n     WHERE vah2.vts_end_datetime >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '3 months') AND vah2.vts_end_datetime < DATE_TRUNC('month', CURRENT_DATE - INTERVAL '2 months'))\nORDER BY total_violations",
+    "query_type": "general",
+    "source_model": "regenerated_llm_gpt-3.5-turbo",
+    "row_count": 17555
+  },
+  {
+    "question": "Which zones are improving in violation count",
+    "sql": "WITH zone_violation_trend AS (\n    SELECT\n        DATE_TRUNC('month', vah.vts_end_datetime) AS month,\n        vah.zone,\n        SUM(vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count + vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count + vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count) AS total_violations\n    FROM\n        vts_alert_history vah\n    WHERE\n        vah.zone IS NOT NULL\n    GROUP BY\n        month, vah.zone\n),\nzone_improvement AS (\n    SELECT\n        zvt.zone,\n        LAG(zvt.total_violations) OVER (PARTITION BY zvt.zone ORDER BY zvt.month) AS previous_violations,\n        zvt.total_violations AS current_violations\n    FROM\n        zone_violation_trend zvt\n)\nSELECT\n    zone\nFROM\n    zone_improvement\nWHERE\n    previous_violations IS NOT NULL\n    AND current_violations < previous_violations\nGROUP BY\n    zone\nORDER BY\n    zone",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 13
+  },
+  {
+    "question": "Vehicles consistently low risk across all trips",
+    "sql": "SELECT \n    vtm.truck_no,\n    trs.risk_score\nFROM \n    vts_truck_master vtm\nJOIN \n    tt_risk_score trs ON vtm.truck_no = trs.tt_number\nWHERE \n    trs.risk_score <= 50\nGROUP BY \n    vtm.truck_no, trs.risk_score\nLIMIT 100",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 100
+  },
+  {
+    "question": "what are the columns in alerts_history",
+    "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'alerts' ORDER BY ordinal_position",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 99
+  },
+  {
+    "question": "what are the columns in vts_alerts_history",
+    "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'vts_alert_history' ORDER BY ordinal_position",
+    "query_type": "general",
+    "source_model": "cache_hit (training_data_exact)",
+    "row_count": 40
+  },
+  {
+    "question": "Show me the average risk score for vehicles in the 'South' zone for trips completed in the last 45 days",
+    "sql": "SELECT\n    AVG(ttrs.risk_score) AS average_risk_score\nFROM tt_risk_score AS ttrs\nJOIN vts_truck_master AS vtm ON ttrs.tt_number = vtm.truck_no\nJOIN completed_trips_risk_score AS ctrs ON ttrs.tt_number = ctrs.tt_number\nWHERE vtm.zone ILIKE 'South'\n  AND ctrs.scheduled_trip_end_datetime::TIMESTAMP >= CURRENT_DATE - INTERVAL '45 days'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 1
+  },
+  {
+    "question": "What is the average time difference between alert creation and R1 response for 'High' severity alerts",
+    "sql": "SELECT\n    'alerts' AS \"Data Table\",\n    AVG(r1_time - created_at) AS average_r1_response_time\nFROM alerts\nWHERE alert_section = 'VTS'\n  AND severity = 'High'\n  AND r1_time IS NOT NULL\n  AND created_at IS NOT NULL",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Find drivers who are currently on a trip and have an open alert of 'Critical' severity",
+    "sql": "SELECT vot.driver_name, a.unique_id\nFROM vts_ongoing_trips vot\nJOIN alerts a ON vot.tt_number = a.vehicle_number\nWHERE a.alert_status = 'Open' AND a.severity = 'Critical'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 2016
+  },
+  {
+    "question": "what is the sap id for vehicle AP02X5689",
+    "sql": "SELECT sap_id FROM vts_truck_master WHERE truck_no = 'AP02X5689'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "What is the risk score for vehicle NL01AA1225",
+    "sql": "SELECT \n    trs.risk_score, \n    trs.tt_number \nFROM tt_risk_score trs \nWHERE trs.tt_number = 'NL01AA1225'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "What is the average delay between a trip's scheduled start and actual start for trips in the last month",
+    "sql": "SELECT\n    'vts_ongoing_trips' AS \"Data Table\",\n    AVG(actual_trip_start_datetime - scheduled_start_datetime) AS \"Average Start Delay\"\nFROM vts_ongoing_trips\nWHERE\n    actual_trip_start_datetime IS NOT NULL\n    AND scheduled_start_datetime IS NOT NULL\n    AND actual_trip_start_datetime >= CURRENT_DATE - INTERVAL '1 month'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Show night driving violations by region",
+    "sql": "SELECT\n    'vts_alert_history' AS \"Data Table\",\n    region,\n    SUM(night_driving_count) AS total_night_driving_violations\nFROM vts_alert_history\nWHERE night_driving_count > 0 AND region IS NOT NULL\nGROUP BY region\nORDER BY total_night_driving_violations DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 62
+  },
+  {
+    "question": "List violations for a specific vehicle",
+    "sql": "SELECT 'vts_alert_history' AS \"Data Table\", \n    tl_number, \n    SUM(stoppage_violations_count + route_deviation_count + speed_violation_count + \n        night_driving_count + device_offline_count + device_tamper_count + \n        continuous_driving_count + no_halt_zone_count + main_supply_removal_count) AS total_violations\nFROM vts_alert_history\nGROUP BY tl_number",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 22814
+  },
+  {
+    "question": "top 5 transporters by risk score",
+    "sql": "SELECT 'transporter_risk_score' AS \"Data Table\",\n    transporter_code,\n    risk_score \nFROM transporter_risk_score\nWHERE risk_score IS NOT NULL AND transporter_code IS NOT NULL ORDER BY risk_score DESC\nLIMIT 5",
+    "query_type": "general",
+    "source_model": "training_data_adaptation",
+    "row_count": 5
+  },
+  {
+    "question": "How many open alerts by severity",
+    "sql": "SELECT severity, COUNT(*) AS number_of_open_alerts \nFROM alerts a \nWHERE a.alert_status = 'Open' \nGROUP BY severity",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 4
+  },
+  {
+    "question": "Zone-wise average risk trend",
+    "sql": "SELECT\n    vtm.zone,\n    DATE_TRUNC('month', ctrs.scheduled_trip_end_datetime::TIMESTAMP) AS month,\n    AVG(ctrs.risk_score) AS average_risk_score\nFROM completed_trips_risk_score ctrs\nJOIN vts_truck_master vtm ON ctrs.tt_number = vtm.truck_no\nGROUP BY vtm.zone, month\nORDER BY month, vtm.zone",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 65
+  },
+  {
+    "question": "Trips with risk score > 90",
+    "sql": "SELECT \n    vot.trip_id,\n    vot.tt_number,\n    trs.risk_score,\n    vot.transporter_name,\n    vot.driver_name\nFROM \n    vts_ongoing_trips vot\nJOIN \n    tt_risk_score trs ON vot.tt_number = trs.tt_number\nWHERE \n    trs.risk_score > 90",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 13
+  },
+  {
+    "question": "give risk score for a specific vehicle last month",
+    "sql": "SELECT trs.risk_score \nFROM tt_risk_score trs\nWHERE EXISTS (\n    SELECT 1\n    FROM completed_trips_risk_score ctrs\n    WHERE ctrs.tt_number = trs.tt_number\n      AND ctrs.scheduled_trip_end_datetime::TIMESTAMP >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') \n      AND ctrs.scheduled_trip_end_datetime::TIMESTAMP < DATE_TRUNC('month', CURRENT_DATE)\n)",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 19623
+  },
+  {
+    "question": "Transporters with device removal risk > 50",
+    "sql": "SELECT transporter_code, transporter_name, dr AS device_removed_risk\nFROM transporter_risk_score\nWHERE dr > 50",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 44
+  },
+  {
+    "question": "Vehicles with high route deviation risk",
+    "sql": "SELECT \n    'tt_risk_score' AS \"Data Table\",\n    trs.tt_number,\n    trs.rd AS route_deviation_risk\nFROM \n    tt_risk_score trs\nWHERE \n    trs.rd IS NOT NULL\nORDER BY \n    trs.rd DESC\nLIMIT 100",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 100
+  },
+  {
+    "question": "Which vehicles failed both swipe-in and swipe-out on the same trip",
+    "sql": "SELECT \n    tam.trucknumber,\n    tam.invoicenumber,\n    tam.createdat\nFROM \n    vts_tripauditmaster tam\nWHERE \n    (tam.swipeinl1 = 'false' OR tam.swipeinl2 = 'false')\n    AND (tam.swipeoutl1 = 'false' OR tam.swipeoutl2 = 'false')\nORDER BY \n    tam.createdat DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 112133
+  },
+  {
+    "question": "Who are the top 3 users who have assigned the most alerts in the last 7 days",
+    "sql": "SELECT \n    a.assigned_to,\n    COUNT(*) AS alert_count\nFROM alerts a\nWHERE a.created_at >= CURRENT_DATE - INTERVAL '7 days'\nGROUP BY a.assigned_to\nORDER BY alert_count DESC\nLIMIT 3",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Show me vehicles with a high risk score (>80) that are currently on a trip",
+    "sql": "SELECT \n    vot.tt_number,\n    trs.risk_score,\n    vot.driver_name\nFROM \n    vts_ongoing_trips vot\nJOIN \n    tt_risk_score trs ON vot.tt_number = trs.tt_number\nWHERE \n    trs.risk_score > 80",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 2796
+  },
+  {
+    "question": "Which transporters have had zero critical alerts in the last 30 days",
+    "sql": "SELECT vtm.transporter_name\nFROM vts_truck_master vtm\nWHERE NOT EXISTS (\n    SELECT 1\n    FROM alerts a\n    WHERE a.vehicle_number = vtm.truck_no\n    AND a.alert_section = 'VTS'\n    AND a.severity = 'Critical'\n    AND a.created_at >= CURRENT_DATE - INTERVAL '30 days'\n)",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 71251
+  },
+  {
+    "question": "Find vehicles where the harsh braking risk component is higher than the speed violation risk component",
+    "sql": "SELECT\n    trs.tt_number,\n    trs.hb AS harsh_braking_risk_component,\n    trs.sv AS speed_violation_risk_component\nFROM tt_risk_score trs\nWHERE trs.hb > trs.sv",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 3360
+  },
+  {
+    "question": "Who approved the most alert closures last month",
+    "sql": "SELECT \n    'vts_alert_history' AS \"Data Table\",\n    approved_by,\n    COUNT(*) as approval_count\nFROM vts_alert_history\nWHERE approved_by IS NOT NULL\n  AND vts_end_datetime >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')\n  AND vts_end_datetime < DATE_TRUNC('month', CURRENT_DATE)\nGROUP BY approved_by\nORDER BY approval_count DESC",
+    "query_type": "general",
+    "source_model": "training_data_exact",
+    "row_count": 1
+  },
+  {
+    "question": "Which vehicles have a High device removed score but a Low overall risk score",
+    "sql": "SELECT\n    'tt_risk_score' AS \"Data Table\",\n    tt_number,\n    risk_score,\n    dr\nFROM tt_risk_score\nWHERE dr > 60 AND risk_score < 40\nORDER BY dr DESC;",
+    "query_type": "general",
+    "source_model": "training_data_exact",
+    "row_count": 17
+  },
+  {
+    "question": "Which routes have the most violations",
+    "sql": "WITH aggregated_alerts AS (\n    SELECT\n        vah.invoice_number,\n        SUM(\n            vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count +\n            vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count +\n            vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count\n        ) AS total_violations,\n        vah.tt_type\n    FROM\n        vts_alert_history vah\n    WHERE\n        vah.vts_end_datetime IS NOT NULL\n    GROUP BY\n        vah.invoice_number, vah.tt_type\n)\n\nSELECT\n    'route_violations' AS \"Data Table\",\n    vot.route_no,\n    SUM(aa.total_violations) AS total_violations\nFROM\n    vts_ongoing_trips vot\nJOIN\n    vts_truck_master vtm ON vot.tt_number = vtm.truck_no\nJOIN\n    aggregated_alerts aa ON vot.invoice_no = aa.invoice_number\nWHERE\n    vot.route_no IS NOT NULL\nGROUP BY\n    vot.route_no\nORDER BY total_violations DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 20699
+  },
+  {
+    "question": "What is the total capacity of all blacklisted vehicles",
+    "sql": "SELECT \n    'vts_truck_master' AS \"Data Table\",\n    SUM(capacity_of_the_truck) AS total_capacity\nFROM vts_truck_master\nWHERE whether_truck_blacklisted = 'Y'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Count the number of ongoing trips where the destination code is missing",
+    "sql": "SELECT COUNT(*) FROM vts_ongoing_trips WHERE destination_code IS NULL AND actual_trip_start_datetime IS NOT NULL AND event_end_datetime IS NULL",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Count the number of emlock trips that had a swipe out failure, grouped by zone",
+    "sql": "SELECT 'vts_tripauditmaster' AS \"Data Table\",\n    zone,\n    COUNT(*) AS emlock_trip_failure_count\nFROM vts_tripauditmaster\nWHERE isemlocktrip = 'true' \n  AND (swipeoutl1 = 'false' OR swipeoutl2 = 'false') \n  AND zone IS NOT NULL\nGROUP BY zone\nORDER BY emlock_trip_failure_count DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 11
+  },
+  {
+    "question": "Which user has the most 'Open' alerts assigned to them right now?",
+    "sql": "SELECT \n    a.assigned_to,\n    COUNT(*) AS open_alert_count\nFROM alerts a\nWHERE a.alert_status = 'Open'\nGROUP BY a.assigned_to\nORDER BY open_alert_count DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Show me active trips for vehicles with a capacity over 25000",
+    "sql": "SELECT\n  vot.trip_id,\n  vot.tt_number,\n  vot.driver_name,\n  vot.transporter_name,\n  vot.event_start_datetime,\n  vot.actual_trip_start_datetime,\n  vot.vehicle_latitude,\n  vot.vehicle_longitude\nFROM vts_ongoing_trips vot\nJOIN vts_truck_master vtm ON vtm.truck_no = vot.tt_number\nWHERE vtm.capacity_of_the_truck > 25000",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 104513
+  },
+  {
+    "question": "Count the number of e-lock trips for each transporter in the last 30 days",
+    "sql": "WITH recent_emlock_trips AS (\n    SELECT vtm.transporter_code, vtm.transporter_name\n    FROM vts_tripauditmaster vtam\n    JOIN vts_truck_master vtm ON vtam.trucknumber = vtm.truck_no\n    WHERE vtam.isemlocktrip = 'true' AND vtam.createdat >= CURRENT_DATE - INTERVAL '30 days'\n)\nSELECT transporter_name, COUNT(*) AS emlock_trip_count\nFROM recent_emlock_trips\nGROUP BY transporter_name\nORDER BY emlock_trip_count DESC",
+    "query_type": "general",
+    "source_model": "full_context_llm_gpt-4o",
+    "row_count": 5086
+  },
+  {
+    "question": "Find vehicles that are currently blocked and show when they were blocked.",
+    "sql": "SELECT \n    a.vehicle_number, \n    a.vehicle_blocked_start_date\nFROM alerts a\nWHERE a.vehicle_blocked_start_date IS NOT NULL\n  AND a.vehicle_unblocked_date IS NULL\n  AND a.alert_section = 'VTS'",
+    "query_type": "general",
+    "source_model": "regenerated_llm_gpt-4o",
+    "row_count": 267
+  },
+  {
+    "question": "How many 'Device Tamper' alerts were generated by 'Market' owned vehicles last week",
+    "sql": "SELECT COUNT(*) AS device_tamper_alerts_count\nFROM alerts a\nJOIN vts_truck_master vtm ON a.vehicle_number = vtm.truck_no\nWHERE a.alert_category = 'Device Tamper'\n  AND vtm.ownership_type = 'Market'\n  AND a.created_at >= CURRENT_DATE - INTERVAL '7 days'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "Which region has the highest average transporter risk score",
+    "sql": "SELECT tm.region, AVG(tr.risk_score) AS avg_risk\nFROM transporter_risk_score tr\nJOIN vts_truck_master tm ON tr.transporter_code = tm.transporter_code\nGROUP BY tm.region\nORDER BY avg_risk DESC\nLIMIT 1",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "List invoices present in vts_tripauditmaster but missing from vts_ongoing_trips",
+    "sql": "WITH audit_invoices AS (\n    SELECT DISTINCT ta.invoicenumber\n    FROM vts_tripauditmaster ta\n)\nSELECT ai.invoicenumber\nFROM audit_invoices ai\nLEFT JOIN vts_ongoing_trips ot ON ai.invoicenumber = ot.invoice_no\nWHERE ot.invoice_no IS NULL",
+    "query_type": "general",
+    "source_model": "regenerated_llm_gpt-4o-mini",
+    "row_count": 91191
+  },
+  {
+    "question": "Count the number of alerts for transporter 'PAMON ROADWAYS",
+    "sql": "SELECT vtm.transporter_name, COUNT(*) AS alert_count\nFROM alerts a\nJOIN vts_truck_master vtm ON a.vehicle_number = vtm.truck_no\nWHERE vtm.transporter_name ILIKE 'PAMON ROADWAYS' AND a.alert_section = 'VTS'\nGROUP BY vtm.transporter_name",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "How many closed alerts are there for the 'North' zone",
+    "sql": "SELECT COUNT(*) AS \"Closed Alert Count\"\nFROM alerts a\nWHERE a.alert_status = 'Close' AND a.zone ILIKE 'North' AND a.alert_section = 'VTS'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "List invoices present in vts_tripauditmaster but missing from vts_ongoing_trips for trips created today",
+    "sql": "WITH audit_invoices AS (\n    SELECT DISTINCT ta.invoicenumber\n    FROM vts_tripauditmaster ta\n)\nSELECT ai.invoicenumber\nFROM audit_invoices ai\nLEFT JOIN vts_ongoing_trips ot ON ai.invoicenumber = ot.invoice_no\nWHERE ot.invoice_no IS NULL",
+    "query_type": "general",
+    "source_model": "cache_hit (regenerated_llm_gpt-4o-mini)",
+    "row_count": 91191
+  },
+  {
+    "question": "Show all emlock trips",
+    "sql": "SELECT 'vts_tripauditmaster' AS \"Data Table\",\n    trucknumber,\n    invoicenumber,\n    createdat\nFROM vts_tripauditmaster\nWHERE isemlocktrip = 'true'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 2492149
+  },
+  {
+    "question": "Transporters with risk score but no vehicles",
+    "sql": "SELECT \n    trs.transporter_code, \n    trs.transporter_name, \n    trs.risk_score\nFROM \n    transporter_risk_score trs\nWHERE \n    trs.transporter_code IS NOT NULL \n    AND NOT EXISTS (\n        SELECT 1 \n        FROM vts_truck_master vtm \n        WHERE vtm.transporter_code = trs.transporter_code\n    )",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 11156
+  },
+  {
+    "question": "Most efficient driver in terms of miles per violation",
+    "sql": "WITH driver_violations AS (\n    SELECT\n        vot.driver_name,\n        SUM(vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count + \n            vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count + \n            vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count) AS total_violations\n    FROM vts_ongoing_trips vot\n    JOIN vts_truck_master vtm ON vot.tt_number = vtm.truck_no\n    JOIN vts_alert_history vah ON vtm.truck_no = vah.tl_number\n    WHERE vot.driver_name IS NOT NULL\n    GROUP BY vot.driver_name\n),\ndriver_miles AS (\n    SELECT\n        vot.driver_name,\n        SUM(vot.vehicle_latitude + vot.vehicle_longitude) AS total_miles \n    FROM vts_ongoing_trips vot\n    WHERE vot.driver_name IS NOT NULL\n    GROUP BY vot.driver_name\n)\nSELECT\n    dv.driver_name,\n    dm.total_miles,\n    dv.total_violations,\n    CASE WHEN dv.total_violations = 0 THEN NULL ELSE dm.total_miles / dv.total_violations END AS miles_per_violation\nFROM driver_violations dv\nJOIN driver_miles dm ON dv.driver_name = dm.driver_name\nORDER BY miles_per_violation DESC\nLIMIT 1",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 1
+  },
+  {
+    "question": "List alerts where the 'r1_time' is null but the alert has been Open for more than 1 hour",
+    "sql": "SELECT \n    a.vehicle_number, \n    a.alert_category, \n    a.severity, \n    a.created_at\nFROM \n    alerts a\nWHERE \n    a.alert_status = 'Open'\n    AND a.alert_section = 'VTS'\n    AND a.r1_time IS NULL\n    AND a.created_at < CURRENT_TIMESTAMP - INTERVAL '1 hour'\nORDER BY \n    a.created_at ASC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 150
+  },
+  {
+    "question": "What is the total empty weight of all vehicles currently operating in the 'Mumbai' region",
+    "sql": "SELECT \n    SUM(vtm.empty_weight) AS total_empty_weight\nFROM vts_truck_master vtm\nJOIN vts_ongoing_trips vot ON vtm.truck_no = vot.tt_number\nWHERE vtm.region ILIKE 'Mumbai'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "abba where is jabba vehicle number",
+    "sql": "SELECT vtm.truck_no, vtm.transporter_name, vtm.whether_truck_blacklisted FROM vts_truck_master vtm WHERE vtm.transporter_name ILIKE '%jabba%'",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  },
+  {
+    "question": "who is the best transporter based on violations",
+    "sql": "SELECT \n    vtm.transporter_name,\n    SUM(\n        COALESCE(vah.stoppage_violations_count, 0) + \n        COALESCE(vah.route_deviation_count, 0) + \n        COALESCE(vah.speed_violation_count, 0) + \n        COALESCE(vah.night_driving_count, 0) + \n        COALESCE(vah.device_offline_count, 0) + \n        COALESCE(vah.device_tamper_count, 0) + \n        COALESCE(vah.continuous_driving_count, 0) + \n        COALESCE(vah.no_halt_zone_count, 0) + \n        COALESCE(vah.main_supply_removal_count, 0)\n    ) AS total_violations\nFROM vts_alert_history vah\nJOIN vts_truck_master vtm ON vah.tl_number = vtm.truck_no\nGROUP BY vtm.transporter_name\nORDER BY total_violations ASC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 9287
+  },
+  {
+    "question": "jamper me bumper high violations count",
+    "sql": "SELECT \n    vah.tl_number AS vehicle_number,\n    SUM(\n        COALESCE(vah.stoppage_violations_count, 0) + \n        COALESCE(vah.route_deviation_count, 0) + \n        COALESCE(vah.speed_violation_count, 0) + \n        COALESCE(vah.night_driving_count, 0) + \n        COALESCE(vah.device_offline_count, 0) + \n        COALESCE(vah.device_tamper_count, 0) + \n        COALESCE(vah.continuous_driving_count, 0) + \n        COALESCE(vah.no_halt_zone_count, 0) + \n        COALESCE(vah.main_supply_removal_count, 0)\n    ) AS total_violations\nFROM vts_alert_history vah\nGROUP BY vah.tl_number\nHAVING SUM(\n    COALESCE(vah.stoppage_violations_count, 0) + \n    COALESCE(vah.route_deviation_count, 0) + \n    COALESCE(vah.speed_violation_count, 0) + \n    COALESCE(vah.night_driving_count, 0) + \n    COALESCE(vah.device_offline_count, 0) + \n    COALESCE(vah.device_tamper_count, 0) + \n    COALESCE(vah.continuous_driving_count, 0) + \n    COALESCE(vah.no_halt_zone_count, 0) + \n    COALESCE(vah.main_supply_removal_count, 0)\n) > 10\nORDER BY total_violations DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o",
+    "row_count": 20757
+  },
+  {
+    "question": "Which transporters have a good risk score (< 40) but a high number of total violations (> 50) in the last quarter",
+    "sql": "WITH transporter_violations AS (\n    SELECT\n        vtm.transporter_code,\n        SUM(vah.stoppage_violations_count + vah.route_deviation_count + vah.speed_violation_count + vah.night_driving_count + vah.device_offline_count + vah.device_tamper_count + vah.continuous_driving_count + vah.no_halt_zone_count + vah.main_supply_removal_count) AS total_violations\n    FROM vts_alert_history vah\n    JOIN vts_truck_master vtm ON vah.tl_number = vtm.truck_no\n    WHERE vah.vts_end_datetime >= CURRENT_DATE - INTERVAL '3 months'\n    GROUP BY vtm.transporter_code\n)\nSELECT\n    trs.transporter_name,\n    trs.risk_score,\n    tv.total_violations\nFROM transporter_risk_score trs\nJOIN transporter_violations tv ON trs.transporter_code::text = tv.transporter_code::text\nWHERE trs.risk_score < 40 AND tv.total_violations > 50\nORDER BY tv.total_violations DESC",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1557
+  },
+  {
+    "question": "chinar motors total violations in last 3 months",
+    "sql": "SELECT \n    vtm.transporter_name,\n    SUM(\n        COALESCE(vah.stoppage_violations_count, 0) + \n        COALESCE(vah.route_deviation_count, 0) + \n        COALESCE(vah.speed_violation_count, 0) + \n        COALESCE(vah.night_driving_count, 0) + \n        COALESCE(vah.device_offline_count, 0) + \n        COALESCE(vah.device_tamper_count, 0) + \n        COALESCE(vah.continuous_driving_count, 0) + \n        COALESCE(vah.no_halt_zone_count, 0) + \n        COALESCE(vah.main_supply_removal_count, 0)\n    ) AS total_violations\nFROM vts_alert_history vah\nJOIN vts_truck_master vtm ON vah.tl_number = vtm.truck_no\nWHERE vtm.transporter_name ILIKE 'chinar motors' \n    AND vah.vts_end_datetime >= CURRENT_DATE - INTERVAL '3 months'\nGROUP BY vtm.transporter_name",
+    "query_type": "general",
+    "source_model": "few_shot_llm_gpt-4o-mini",
+    "row_count": 1
+  }
+]

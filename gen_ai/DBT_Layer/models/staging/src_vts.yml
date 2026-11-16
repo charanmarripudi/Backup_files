@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw_vts
+    schema: public # Adjust based on your actual DB schema
+    tables:
+      - name: alerts
+      - name: vts_alert_history
+      - name: vts_ongoing_trips
+      - name: vts_truck_master
+      - name: vts_tripauditmaster
+      - name: tt_risk_score
+      - name: transporter_risk_score
+      - name: completed_trips_risk_score
